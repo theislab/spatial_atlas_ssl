@@ -1,8 +1,8 @@
 from torch.utils.data import random_split
 from torch_geometric.loader import DataLoader
 
-def split_dataloader(loader, split_percent=(0.8, 0.1, 0.1)):
 
+def split_dataloader(loader, split_percent=(0.8, 0.1, 0.1)):
     # Split the dataset into train, validation, and test sets
     train_data, val_data, test_data = random_split(loader.dataset, split_percent)
 
