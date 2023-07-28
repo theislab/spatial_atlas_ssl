@@ -21,17 +21,3 @@ class EgoNetDataset(Dataset):
         #get subgraph
         subset, edge_index, mapping, edge_mask =  k_hop_subgraph(node_idx=[idx], edge_index=graph.edge_index, num_hops=1, relabel_nodes=True)
         return Data(x=graph.x[subset], edge_index=edge_index)
-    
-    
-class FullImageDataset(Dataset):
-    def __init__(self, graph_dict):
-        super(FullImageDataset, self).__init__()
-        self.graph_dict = graph_dict
-        self.keys = list(graph_dict.keys())
-
-    def len(self):
-        return len(self.keys)
-
-    def get(self, idx):
-        key = self.keys[idx]
-        return self.graph_dict[key]
