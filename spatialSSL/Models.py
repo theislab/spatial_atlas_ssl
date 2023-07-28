@@ -2,9 +2,6 @@ from torch import Tensor, nn
 from torch_geometric.nn import GCNConv
 
 
-
-
-
 class GCN(nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels):
         super().__init__()

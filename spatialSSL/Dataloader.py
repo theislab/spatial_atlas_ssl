@@ -79,6 +79,7 @@ class EgoNetDataloader(SpatialDataloader):
         # Create dataset from graphs
         self.dataset = EgoNetDataset(graphs=graphs, num_hops=self.node_level)
         loader = DataLoader(self.dataset, batch_size=self.batch_size, shuffle=True)
+        print("total number of cell/nodes: ", len(self.dataset))
         return loader
 
 

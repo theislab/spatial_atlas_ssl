@@ -1,9 +1,10 @@
 import torch
 from sklearn.metrics import r2_score
 from torch import nn, optim
+from tqdm.auto import tqdm
 
 
-def train_model(model, train_loader, val_loader, epochs=100, lr=0.005, patience=5):
+def train_model(model, train_loader, val_loader, epochs=100, lr=0.001, patience=5):
     # Set device for training
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
@@ -24,7 +25,7 @@ def train_model(model, train_loader, val_loader, epochs=100, lr=0.005, patience=
     epochs_no_improve = 0  # Number of epochs with no improvement in validation loss
     best_epoch = 0  # Epoch at which we get the best validation loss
 
-    for epoch in range(epochs):
+    for epoch in tqdm(range(epochs)):
         # Training phase
         model.train()
         total_loss = 0
@@ -94,7 +95,7 @@ def train_model(model, train_loader, val_loader, epochs=100, lr=0.005, patience=
                     f'Early stopping! Epoch: {epoch}, Best Epoch: {best_epoch}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}')
                 break
 
-        print(
-            f"Epoch {epoch + 1}/{epochs}, train loss: {train_loss:.4f}, train r2: {train_r2:.4f},  val loss: {val_loss:.4f}, val r2: {val_r2:.4f}")
+        #print(
+        #    f"Epoch {epoch + 1}/{epochs}, train loss: {train_loss:.4f}, train r2: {train_r2:.4f},  val loss: {val_loss:.4f}, val r2: {val_r2:.4f}")
 
     return train_losses, val_losses, train_r2_scores, val_r2_scores
