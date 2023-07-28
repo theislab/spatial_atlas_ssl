@@ -6,15 +6,17 @@ import networkx as nx
 import numpy as np
 import scanpy as sc
 import squidpy as sq
-from tqdm.auto import tqdm
 
-from sklearn.model_selection import train_test_split
-from torch.utils.data import random_split
+
+from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 from torch_geometric.utils import from_networkx, from_scipy_sparse_matrix
+from tqdm.auto import tqdm
+
+from spatialSSL.Dataset import EgoNetDataset
 
 
-class Dataloader(ABC):
+class SpatialDataloader(ABC):
     def __init__(self, file_path: str, image_col: str, label_col: str, include_label: bool, radius: float,
                  node_level: int = 1, batch_size: int = 64, split_percent: tuple = (0.8, 0.1, 0.1)):
         self.file_path = file_path
@@ -26,6 +28,7 @@ class Dataloader(ABC):
         self.batch_size = batch_size
         self.split_percent = split_percent
 
+        self.dataset = None
         self.adata = None
 
     def load_data(self):
@@ -36,15 +39,9 @@ class Dataloader(ABC):
     def construct_graph(self):
         pass
 
-    @abstractmethod
-    def split_data(self, loader):
-        pass
-
-    def build_graph(self):
-        pass
 
 
-class EgoNetDataloader(Dataloader):
+class EgoNetDataloader(SpatialDataloader):
     def __init__(self, *args, **kwargs):
         """
         Initializes the Ego_net_dataloader.
@@ -69,9 +66,8 @@ class EgoNetDataloader(Dataloader):
     def construct_graph(self):
         # Constructing graph from coordinates using scanpy's spatial_neighbors function
         images = np.unique(self.adata.obs[self.image_col])
-        print(len(images), "images found.")
 
-        sub_g_ensemble = []
+        graphs = []
 
         for image in tqdm(images, desc=f"Processing {len(images)} Images"):
             sub_adata = self.adata[self.adata.obs[self.image_col] == image].copy()
@@ -79,6 +75,9 @@ class EgoNetDataloader(Dataloader):
                                     coord_type="generic")
             edge_index, _ = from_scipy_sparse_matrix(sub_adata.obsp['adjacency_matrix_connectivities'])
 
+            graphs.append(Data(x=sub_adata.X.toarray(), edge_index=edge_index))
+
+            """
             # Create subgraphs for each node
             g = nx.Graph()
 
@@ -92,7 +91,7 @@ class EgoNetDataloader(Dataloader):
 
             # Create subgraphs for each node of g
             subgraphs = [nx.ego_graph(g, node, radius=self.node_level) for node in
-                                  tqdm(g.nodes(), desc="Creating Subgraphs", leave=False)]
+                         tqdm(g.nodes(), desc="Creating Subgraphs", leave=False)]
 
             # Convert networkx graphs to PyG format
             sub_g_dataset = [from_networkx(graph, group_node_attrs=['features']) for graph in
@@ -100,29 +99,13 @@ class EgoNetDataloader(Dataloader):
 
             # Extend the ensemble with the new subgraphs
             sub_g_ensemble.extend(sub_g_dataset)
-
-        loader = DataLoader(sub_g_ensemble, batch_size=self.batch_size, shuffle=True)
+            """
+        self.dataset = EgoNetDataset(graphs)
+        loader = DataLoader(self.dataset, batch_size=self.batch_size, shuffle=True)
         return loader
 
-    def split_data(self, loader):
-        # Assuming split_percent is a tuple like (0.7, 0.2, 0.1)
-        train_size = int(self.split_percent[0] * len(loader.dataset))
-        val_size = int(self.split_percent[1] * len(loader.dataset))
-        test_size = len(loader.dataset) - train_size - val_size
 
-        print(train_size, val_size, test_size)
-
-        train_data, val_data, test_data = random_split(loader.dataset, [train_size, val_size, test_size])
-
-        # Create data loaders for each set
-        train_loader = DataLoader(train_data, batch_size=self.batch_size, shuffle=True)
-        val_loader = DataLoader(val_data, batch_size=self.batch_size, shuffle=False)
-        test_loader = DataLoader(test_data, batch_size=self.batch_size, shuffle=False)
-
-        return train_loader, val_loader, test_loader
-
-
-class FullImageDataloader(Dataloader):
+class FullImageDataloader(SpatialDataloader):
     def __init__(self, *args, **kwargs):  # TODO: Add default parameters for this methods (e.g. batch_size=4)...
         super(FullImageDataloader, self).__init__(*args, **kwargs)
 
@@ -150,24 +133,3 @@ class FullImageDataloader(Dataloader):
             graph_dict[image] = graph
 
         return graph_dict
-
-    def split_data(self, graph_dict):
-        # split by entire images
-        images = list(graph_dict.keys())
-
-        # TODO: Add random state global variable, use different method for splitting data (random split)
-        train_images, test_images = train_test_split(images, test_size=(self.split_percent[1] + self.split_percent[2]),
-                                                     random_state=42)
-        val_images, test_images = train_test_split(test_images, test_size=self.split_percent[2] / (
-                self.split_percent[1] + self.split_percent[2]), random_state=42)
-
-        train_data = [graph_dict[image] for image in train_images]
-        val_data = [graph_dict[image] for image in val_images]
-        test_data = [graph_dict[image] for image in test_images]
-
-        # Create data loaders for each set
-        train_loader = DataLoader(train_data, batch_size=self.batch_size, shuffle=True)
-        val_loader = DataLoader(val_data, batch_size=self.batch_size, shuffle=False)
-        test_loader = DataLoader(test_data, batch_size=self.batch_size, shuffle=False)
-
-        return train_loader, val_loader, test_loader
