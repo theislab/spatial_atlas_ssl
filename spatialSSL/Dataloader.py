@@ -6,7 +6,7 @@ import networkx as nx
 import numpy as np
 import scanpy as sc
 import squidpy as sq
-
+import torch
 
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
@@ -18,7 +18,7 @@ from spatialSSL.Dataset import EgoNetDataset
 
 class SpatialDataloader(ABC):
     def __init__(self, file_path: str, image_col: str, label_col: str, include_label: bool, radius: float,
-                 node_level: int = 1, batch_size: int = 64, split_percent: tuple = (0.8, 0.1, 0.1)):
+                 node_level: int = 1, batch_size: int = 64):
         self.file_path = file_path
         self.image_col = image_col
         self.label_col = label_col
@@ -26,7 +26,6 @@ class SpatialDataloader(ABC):
         self.include_label = include_label
         self.radius = radius
         self.batch_size = batch_size
-        self.split_percent = split_percent
 
         self.dataset = None
         self.adata = None
@@ -69,38 +68,16 @@ class EgoNetDataloader(SpatialDataloader):
 
         graphs = []
 
-        for image in tqdm(images, desc=f"Processing {len(images)} Images"):
+        for image in tqdm(images, desc=f"Processing {len(images)} images"):
             sub_adata = self.adata[self.adata.obs[self.image_col] == image].copy()
             sq.gr.spatial_neighbors(adata=sub_adata, radius=self.radius, key_added="adjacency_matrix",
                                     coord_type="generic")
             edge_index, _ = from_scipy_sparse_matrix(sub_adata.obsp['adjacency_matrix_connectivities'])
+            x = torch.tensor(sub_adata.X.toarray(), dtype=torch.double)
+            graphs.append(Data(x=x, edge_index=edge_index))
 
-            graphs.append(Data(x=sub_adata.X.toarray(), edge_index=edge_index))
-
-            """
-            # Create subgraphs for each node
-            g = nx.Graph()
-
-            # Add nodes with features to the graph
-            for i, features in enumerate(self.adata.X.toarray()):
-                g.add_node(i, features=features)
-
-            # Add edges to the graph
-            # print('Adding edges...')
-            g.add_edges_from(edge_index.t().tolist())
-
-            # Create subgraphs for each node of g
-            subgraphs = [nx.ego_graph(g, node, radius=self.node_level) for node in
-                         tqdm(g.nodes(), desc="Creating Subgraphs", leave=False)]
-
-            # Convert networkx graphs to PyG format
-            sub_g_dataset = [from_networkx(graph, group_node_attrs=['features']) for graph in
-                             tqdm(subgraphs, desc="Converting to PyG format", leave=False)]
-
-            # Extend the ensemble with the new subgraphs
-            sub_g_ensemble.extend(sub_g_dataset)
-            """
-        self.dataset = EgoNetDataset(graphs)
+        # Create dataset from graphs
+        self.dataset = EgoNetDataset(graphs=graphs, num_hops=self.node_level)
         loader = DataLoader(self.dataset, batch_size=self.batch_size, shuffle=True)
         return loader
 
