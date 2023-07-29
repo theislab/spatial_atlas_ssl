@@ -7,12 +7,12 @@ import numpy as np
 import scanpy as sc
 import squidpy as sq
 
-
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 from torch_geometric.utils import from_networkx, from_scipy_sparse_matrix
 from tqdm.auto import tqdm
 from spatialSSL.Dataset import EgoNetDataset, FullImageDataset
+import torch
 
 
 class SpatialDataloader(ABC):
@@ -37,7 +37,6 @@ class SpatialDataloader(ABC):
     @abstractmethod
     def construct_graph(self):
         pass
-
 
 
 class EgoNetDataloader(SpatialDataloader):
@@ -104,37 +103,61 @@ class EgoNetDataloader(SpatialDataloader):
         return loader
 
 
-class FullImageDataloader(SpatialDataloader):
-    def __init__(self, *args, **kwargs):  # TODO: Add default parameters for this methods (e.g. batch_size=4)...
-        super(FullImageDataloader, self).__init__(*args, **kwargs)
+class FullImageConstracter(SpatialDataloader):
+    def __init__(self, *args, **kwargs):
+        super(FullImageConstracter, self).__init__(*args, **kwargs)
 
     def construct_graph(self):
-        # Constructing graph from coordinates using scanpy's spatial_neighbors function
         images = np.unique(self.adata.obs[self.image_col])
 
-        graph_dict = {}
+        graphs = []
         for image in tqdm(images, desc="Constructing Graphs"):
-            
             sub_adata = self.adata[self.adata.obs[self.image_col] == image].copy()
             sq.gr.spatial_neighbors(adata=sub_adata, radius=self.radius, key_added="adjacency_matrix",
                                     coord_type="generic")
             edge_index, _ = from_scipy_sparse_matrix(sub_adata.obsp['adjacency_matrix_connectivities'])
-            ''' 
-            # Construct graph
-            g = nx.Graph()
-            # Adding nodes
-            for i, features in enumerate(sub_adata.X.toarray()):
-                g.add_node(i, features=features)
-            # Adding edges
-            g.add_edges_from(edge_index.t().tolist())
 
-            # Convert networkx graph to PyG format
-            graph = from_networkx(g)
-            ''' 
-            
-            graph = Data(x=sub_adata.X.toarray(), edge_index=edge_index)
-            graph_dict[image] = graph
-            
-        self.dataset = FullImageDataset(graph_dict)
-        loader = DataLoader(self.dataset, batch_size=self.batch_size, shuffle=True)
-        return loader
+            cell_type = sub_adata.obs[self.label_col].values
+
+            # assuming gene expression is stored in sub_adata.X
+            gene_expression = sub_adata.X.toarray()
+
+            # create a mask of size equal to the number of cells
+            gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_random(gene_expression, cell_type)
+
+            gene_expression = torch.tensor(gene_expression, dtype=torch.double)
+            gene_expression_masked = torch.tensor(gene_expression_masked, dtype=torch.double)
+
+            graph = Data(x=gene_expression, edge_index=edge_index, y=gene_expression_masked, mask=mask,
+                         cell_type=cell_type, cell_type_masked=cell_type_masked, image=image)
+            graphs.append(graph)
+        return graphs
+
+    @staticmethod
+    def masking_random(gene_expression, cell_type):
+        # create a mask of size equal to the number of cells
+        mask = torch.ones(gene_expression.shape[0], dtype=torch.bool)
+
+        # randomly select some percentage of cells to mask
+        num_cells_to_mask = int(gene_expression.shape[0] * 0.2)  # e.g., 10%
+        cells_to_mask = np.random.choice(gene_expression.shape[0], size=num_cells_to_mask, replace=False)
+        mask[cells_to_mask] = False
+
+        # save the masked gene expression
+        gene_expression_masked = gene_expression[~mask]
+
+        # set the gene expression of the masked cells to zero
+        gene_expression[cells_to_mask] = 0
+
+        # keep track of the cell types of the masked cells
+        cell_type_masked = cell_type[~cells_to_mask]
+
+        return gene_expression, gene_expression_masked, mask, cell_type_masked
+
+    @staticmethod
+    def masking_by_cell_type(gene_expression, cell_type):
+        pass
+
+    @staticmethod
+    def masking_by_niche(gene_expression, cell_type):
+        pass
