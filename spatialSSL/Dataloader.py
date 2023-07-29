@@ -119,7 +119,7 @@ class FullImageConstracter(SpatialDataloader):
 
             cell_type = sub_adata.obs[self.label_col].values
 
-            # assuming gene expression is stored in sub_adata.raw.X
+            # assuming gene expression is stored in sub_adata.X
             gene_expression = sub_adata.X.toarray()
 
             # create a mask of size equal to the number of cells
@@ -139,13 +139,16 @@ class FullImageConstracter(SpatialDataloader):
         mask = torch.ones(gene_expression.shape[0], dtype=torch.bool)
 
         # randomly select some percentage of cells to mask
-        num_cells_to_mask = int(gene_expression.shape[0] * 0.1)  # e.g., 10%
+        num_cells_to_mask = int(gene_expression.shape[0] * 0.2)  # e.g., 10%
         cells_to_mask = np.random.choice(gene_expression.shape[0], size=num_cells_to_mask, replace=False)
         mask[cells_to_mask] = False
 
+        # save the masked gene expression
+        gene_expression_masked = gene_expression[~mask]
+
         # set the gene expression of the masked cells to zero
         gene_expression[cells_to_mask] = 0
-        gene_expression_masked = gene_expression[~mask]
+
         # keep track of the cell types of the masked cells
         cell_type_masked = cell_type[~cells_to_mask]
 
