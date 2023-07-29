@@ -8,15 +8,15 @@ import scanpy as sc
 import squidpy as sq
 import torch
 
-from torch_geometric.data import Data
+from torch_geometric.data import Data, Dataset
 from torch_geometric.loader import DataLoader
-from torch_geometric.utils import from_networkx, from_scipy_sparse_matrix
+from torch_geometric.utils import from_networkx, from_scipy_sparse_matrix, k_hop_subgraph
 from tqdm.auto import tqdm
 
 from spatialSSL.Dataset import EgoNetDataset
 
 
-class SpatialDataloader(ABC):
+class SpatialDatasetConstructor(ABC):
     def __init__(self, file_path: str, image_col: str, label_col: str, include_label: bool, radius: float,
                  node_level: int = 1, batch_size: int = 64):
         self.file_path = file_path
@@ -40,7 +40,7 @@ class SpatialDataloader(ABC):
 
 
 
-class EgoNetDataloader(SpatialDataloader):
+class EgoNetDatasetConstructor(SpatialDatasetConstructor):
     def __init__(self, *args, **kwargs):
         """
         Initializes the Ego_net_dataloader.
@@ -60,7 +60,7 @@ class EgoNetDataloader(SpatialDataloader):
         distance of the center node.
         """
         # TODO: Add default parameters for this methods (e.g. batch_size=32)
-        super(EgoNetDataloader, self).__init__(*args, **kwargs)
+        super(EgoNetDatasetConstructor, self).__init__(*args, **kwargs)
 
     def construct_graph(self):
         # Constructing graph from coordinates using scanpy's spatial_neighbors function
@@ -68,24 +68,59 @@ class EgoNetDataloader(SpatialDataloader):
 
         graphs = []
 
+
+
         for image in tqdm(images, desc=f"Processing {len(images)} images"):
+
+            # subset adata to only include cells from the current image
             sub_adata = self.adata[self.adata.obs[self.image_col] == image].copy()
+
+            # calculate graph using neighbors function
             sq.gr.spatial_neighbors(adata=sub_adata, radius=self.radius, key_added="adjacency_matrix",
                                     coord_type="generic")
-            edge_index, _ = from_scipy_sparse_matrix(sub_adata.obsp['adjacency_matrix_connectivities'])
+
+            edge_index_full, _ = from_scipy_sparse_matrix(sub_adata.obsp['adjacency_matrix_connectivities'])
+
+            # convert to pytorch tensor
             x = torch.tensor(sub_adata.X.toarray(), dtype=torch.double)
-            graphs.append(Data(x=x, edge_index=edge_index))
+
+            for idx in tqdm(range(len(sub_adata)), desc=f"Processing {len(sub_adata)} nodes", leave=False):
+
+                # create subgraph for each node
+                subset, edge_index, mapping, edge_mask = k_hop_subgraph(node_idx=[idx], edge_index=edge_index_full,
+                                                                        num_hops=self.node_level, relabel_nodes=True)
+
+                subgraph_data = x[subset].clone()
+
+                # calculate new index of center node
+                new_index = torch.nonzero(subset == idx).squeeze()
+
+                # set center node feature to 0
+                subgraph_data[new_index] = 0
+
+                # create mask for the center node, to calculate the loss only on the center node
+                mask = torch.ones(subgraph_data.shape[0], dtype=torch.bool)
+                mask[new_index] = False
+
+                graphs.append(Data(x=subgraph_data, edge_index=edge_index, image=image, mask = mask))
+                """if self.include_label:
+                    y = torch.tensor(sub_adata.obs[self.label_col][mapping], dtype=torch.long)
+                    graphs.append(Data(x=x[subset], edge_index=edge_index, y=y, image=image))
+                else:"""
+
+        return graphs
+            #graphs.append(Data(x=x, edge_index=edge_index, image=image))
 
         # Create dataset from graphs
-        self.dataset = EgoNetDataset(graphs=graphs, num_hops=self.node_level)
-        loader = DataLoader(self.dataset, batch_size=self.batch_size, shuffle=True)
-        print("total number of cell/nodes: ", len(self.dataset))
-        return loader
+        #self.dataset = EgoNetDataset(graphs=graphs, num_hops=self.node_level)
+        #loader = DataLoader(self.dataset, batch_size=self.batch_size, shuffle=True)
+        #print("total number of cell/nodes: ", len(self.dataset))
+        #return loader
 
 
-class FullImageDataloader(SpatialDataloader):
+class FullImageDatasetConstructor(SpatialDatasetConstructor):
     def __init__(self, *args, **kwargs):  # TODO: Add default parameters for this methods (e.g. batch_size=4)...
-        super(FullImageDataloader, self).__init__(*args, **kwargs)
+        super(FullImageDatasetConstructor, self).__init__(*args, **kwargs)
 
     def construct_graph(self):
         # Constructing graph from coordinates using scanpy's spatial_neighbors function

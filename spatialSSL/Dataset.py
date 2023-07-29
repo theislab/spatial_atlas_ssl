@@ -14,18 +14,21 @@ class EgoNetDataset(Dataset):
         return sum([g.x.shape[0] for g in self.graphs])
 
     def get(self, idx):
-
         # find graph and node idx
         for graph in self.graphs:
             if idx < graph.x.shape[0]:
                 break
             idx -= graph.x.shape[0]
 
-        if idx >= graph.x.shape[0]:
-            print("Error: idx out of range")
-        # calculate the subgraph
-        subset, edge_index, mapping, edge_mask = k_hop_subgraph(node_idx=[idx], edge_index=graph.edge_index,
-                                                                num_hops=self.num_hops, relabel_nodes=True)
+        try:
+            # calculate the subgraph
+            subset, edge_index, mapping, edge_mask = k_hop_subgraph(node_idx=[idx], edge_index=graph.edge_index,
+                                                                    num_hops=self.num_hops, relabel_nodes=True)
+        except:
+            print("Error in get function")
+            print("idx: ", idx)
+            print("graph.x.shape: ", graph.x.shape)
+            print("graph", graph.image)
 
         # get subgraph
         subgraph_data = graph.x[subset].clone()
