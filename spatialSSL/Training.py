@@ -95,7 +95,7 @@ def train_model(model, train_loader, val_loader, epochs=100, lr=0.001, patience=
                     f'Early stopping! Epoch: {epoch}, Best Epoch: {best_epoch}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}')
                 break
 
-        #print(
-        #    f"Epoch {epoch + 1}/{epochs}, train loss: {train_loss:.4f}, train r2: {train_r2:.4f},  val loss: {val_loss:.4f}, val r2: {val_r2:.4f}")
+        print(
+            f"Epoch {epoch + 1}/{epochs}, train loss: {train_loss:.4f}, train r2: {train_r2:.4f},  val loss: {val_loss:.4f}, val r2: {val_r2:.4f}")
 
     return train_losses, val_losses, train_r2_scores, val_r2_scores

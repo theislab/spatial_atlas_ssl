@@ -39,7 +39,6 @@ class SpatialDatasetConstructor(ABC):
         pass
 
 
-
 class EgoNetDatasetConstructor(SpatialDatasetConstructor):
     def __init__(self, *args, **kwargs):
         """
@@ -68,8 +67,6 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
 
         graphs = []
 
-
-
         for image in tqdm(images, desc=f"Processing {len(images)} images"):
 
             # subset adata to only include cells from the current image
@@ -85,7 +82,6 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
             x = torch.tensor(sub_adata.X.toarray(), dtype=torch.double)
 
             for idx in tqdm(range(len(sub_adata)), desc=f"Processing {len(sub_adata)} nodes", leave=False):
-
                 # create subgraph for each node
                 subset, edge_index, mapping, edge_mask = k_hop_subgraph(node_idx=[idx], edge_index=edge_index_full,
                                                                         num_hops=self.node_level, relabel_nodes=True)
@@ -102,20 +98,22 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
                 mask = torch.ones(subgraph_data.shape[0], dtype=torch.bool)
                 mask[new_index] = False
 
-                graphs.append(Data(x=subgraph_data, edge_index=edge_index, image=image, mask = mask))
+                graphs.append(
+                    Data(x=subgraph_data, y=x[idx].view(1, 550), edge_index=edge_index, image=image, mask=mask))
+
                 """if self.include_label:
                     y = torch.tensor(sub_adata.obs[self.label_col][mapping], dtype=torch.long)
                     graphs.append(Data(x=x[subset], edge_index=edge_index, y=y, image=image))
                 else:"""
 
         return graphs
-            #graphs.append(Data(x=x, edge_index=edge_index, image=image))
+        # graphs.append(Data(x=x, edge_index=edge_index, image=image))
 
         # Create dataset from graphs
-        #self.dataset = EgoNetDataset(graphs=graphs, num_hops=self.node_level)
-        #loader = DataLoader(self.dataset, batch_size=self.batch_size, shuffle=True)
-        #print("total number of cell/nodes: ", len(self.dataset))
-        #return loader
+        # self.dataset = EgoNetDataset(graphs=graphs, num_hops=self.node_level)
+        # loader = DataLoader(self.dataset, batch_size=self.batch_size, shuffle=True)
+        # print("total number of cell/nodes: ", len(self.dataset))
+        # return loader
 
 
 class FullImageDatasetConstructor(SpatialDatasetConstructor):
