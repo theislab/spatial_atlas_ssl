@@ -74,7 +74,7 @@ class EgoNetDataloader(SpatialDataloader):
                                     coord_type="generic")
             edge_index, _ = from_scipy_sparse_matrix(sub_adata.obsp['adjacency_matrix_connectivities'])
             x = torch.tensor(sub_adata.X.toarray(), dtype=torch.double)
-            graphs.append(Data(x=x, edge_index=edge_index))
+            graphs.append(Data(x=x, edge_index=edge_index, image=image))
 
         # Create dataset from graphs
         self.dataset = EgoNetDataset(graphs=graphs, num_hops=self.node_level)
