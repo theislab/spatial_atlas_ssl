@@ -33,6 +33,13 @@ class SpatialDatasetConstructor(ABC):
     def load_data(self):
         # Load data from .h5ad file and return a scanpy AnnData object
         self.adata = sc.read(self.file_path)
+        """import os
+        import psutil
+        pid = os.getpid()
+        python_process = psutil.Process(pid)
+        memoryUse = python_process.memory_info()[0] / 2. ** 30  # memory use in GB...I think
+        print(f'memory use: {memoryUse:.2f} GB'.format(**locals()))
+        """
 
     @abstractmethod
     def construct_graph(self):
@@ -83,8 +90,13 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
 
             for idx in tqdm(range(len(sub_adata)), desc=f"Processing {len(sub_adata)} nodes", leave=False):
                 # create subgraph for each node
-                subset, edge_index, mapping, edge_mask = k_hop_subgraph(node_idx=[idx], edge_index=edge_index_full,
-                                                                        num_hops=self.node_level, relabel_nodes=True)
+
+                try:
+                    subset, edge_index, mapping, edge_mask = k_hop_subgraph(node_idx=[idx], edge_index=edge_index_full,
+                                                                            num_hops=self.node_level, relabel_nodes=True)
+                except Exception as e:
+                    print(e)
+                    print("error in k_hop_subgraph function: ", idx, image)
 
                 subgraph_data = x[subset].clone()
 
@@ -105,6 +117,14 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
                     y = torch.tensor(sub_adata.obs[self.label_col][mapping], dtype=torch.long)
                     graphs.append(Data(x=x[subset], edge_index=edge_index, y=y, image=image))
                 else:"""
+
+            """import os
+            import psutil
+            pid = os.getpid()
+            python_process = psutil.Process(pid)
+            memoryUse = python_process.memory_info()[0] / 2. ** 30  # memory use in GB...I think
+            print(f'memory use: {memoryUse:.2f} GB'.format(**locals()))
+            """
 
         return graphs
         # graphs.append(Data(x=x, edge_index=edge_index, image=image))
