@@ -1,7 +1,7 @@
-from .Dataloader import EgoNetDataloader, FullImageDataloader
+from . import Dataloader
 from . import Utils
 from . import Models
 
 
-__all__ = ['EgoNetDataloader', 'FullImageDataloader']
+__all__ = ['EgoNetDataloader', 'FullImageConstracter']
 __version__ = "0.0.1"
