@@ -14,6 +14,7 @@ from tqdm.auto import tqdm
 from spatialSSL.Dataset import EgoNetDataset, FullImageDataset
 import torch
 
+
 class SpatialDataloader(ABC):
     def __init__(self, file_path: str, image_col: str, label_col: str, include_label: bool, radius: float,
                  node_level: int = 1, batch_size: int = 64, split_percent: tuple = (0.8, 0.1, 0.1)):
@@ -122,21 +123,38 @@ class FullImageConstracter(SpatialDataloader):
             gene_expression = sub_adata.X.toarray()
 
             # create a mask of size equal to the number of cells
-            mask = torch.ones(sub_adata.shape[0], dtype=torch.bool)
+            gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_random(gene_expression, cell_type)
 
-            # randomly select some percentage of cells to mask
-            num_cells_to_mask = int(sub_adata.shape[0] * 0.1)  # e.g., 10%
-            cells_to_mask = np.random.choice(sub_adata.shape[0], size=num_cells_to_mask, replace=False)
-            mask[cells_to_mask] = False
+            gene_expression = torch.tensor(gene_expression, dtype=torch.double)
+            gene_expression_masked = torch.tensor(gene_expression_masked, dtype=torch.double)
 
-            # set the gene expression of the masked cells to zero
-            gene_expression[cells_to_mask] = 0
-
-            # keep track of the cell types of the masked cells
-            cell_type_masked = cell_type[cells_to_mask]
-
-            graph = Data(x=gene_expression, edge_index=edge_index, y=gene_expression, mask=mask,
+            graph = Data(x=gene_expression, edge_index=edge_index, y=gene_expression_masked, mask=mask,
                          cell_type=cell_type, cell_type_masked=cell_type_masked, image=image)
             graphs.append(graph)
-
         return graphs
+
+    @staticmethod
+    def masking_random(gene_expression, cell_type):
+        # create a mask of size equal to the number of cells
+        mask = torch.ones(gene_expression.shape[0], dtype=torch.bool)
+
+        # randomly select some percentage of cells to mask
+        num_cells_to_mask = int(gene_expression.shape[0] * 0.1)  # e.g., 10%
+        cells_to_mask = np.random.choice(gene_expression.shape[0], size=num_cells_to_mask, replace=False)
+        mask[cells_to_mask] = False
+
+        # set the gene expression of the masked cells to zero
+        gene_expression[cells_to_mask] = 0
+        gene_expression_masked = gene_expression[~mask]
+        # keep track of the cell types of the masked cells
+        cell_type_masked = cell_type[~cells_to_mask]
+
+        return gene_expression, gene_expression_masked, mask, cell_type_masked
+
+    @staticmethod
+    def masking_by_cell_type(gene_expression, cell_type):
+        pass
+
+    @staticmethod
+    def masking_by_niche(gene_expression, cell_type):
+        pass
