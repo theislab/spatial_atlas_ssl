@@ -11,7 +11,7 @@ from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 from torch_geometric.utils import from_networkx, from_scipy_sparse_matrix, k_hop_subgraph
 from tqdm.auto import tqdm
-#from spatialSSL.Dataset import EgoNetDataset, FullImageDataset
+#from spatialSSL.Dataset import EgoNetDataset
 import torch
 
 
@@ -29,7 +29,8 @@ class SpatialDataloader(ABC):
         self.mask_method = mask_method
         self.dataset = None
         self.adata = None
-        self.celltype_to_mask = None
+        if self.mask_method == 'cell_type':
+            self.celltype_to_mask = kwargs['celltype_to_mask']
 
     def load_data(self):
         # Load data from .h5ad file and return a scanpy AnnData object
@@ -131,9 +132,7 @@ class FullImageConstracter(SpatialDataloader):
             elif self.mask_method == 'niche':
                 gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_by_niche(gene_expression, cell_type, edge_index)
 
-            # create a mask of size equal to the number of cells
-            gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_random(gene_expression, cell_type)
-
+            # convert to tensors
             gene_expression = torch.tensor(gene_expression, dtype=torch.double)
             gene_expression_masked = torch.tensor(gene_expression_masked, dtype=torch.double)
             #print(cell_type.shape)
@@ -146,22 +145,22 @@ class FullImageConstracter(SpatialDataloader):
     def masking_random(gene_expression, cell_type):
         # create a mask of size equal to the number of cells
 
-        # Mask is ture for cells that are not masked
+        # Mask is ture for cells that are masked
         mask = torch.ones(gene_expression.shape[0], dtype=torch.bool)
 
         # randomly select some percentage of cells to mask
         num_cells_to_mask = int(gene_expression.shape[0] * 0.2)  # e.g., 10%
         cells_to_mask = np.random.choice(gene_expression.shape[0], size=num_cells_to_mask, replace=False)
-        mask[cells_to_mask] = False
+        mask[cells_to_mask] = True
 
         # save the masked gene expression
-        gene_expression_masked = gene_expression[~mask]
+        gene_expression_masked = gene_expression[mask]
 
         # set the gene expression of the masked cells to zero
         gene_expression[cells_to_mask] = 0
 
         # keep track of the cell types of the masked cells
-        cell_type_masked = cell_type[~cells_to_mask]
+        cell_type_masked = cell_type[cells_to_mask]
 
         return gene_expression, gene_expression_masked, mask, cell_type_masked
 
@@ -169,19 +168,26 @@ class FullImageConstracter(SpatialDataloader):
     def masking_by_cell_type(gene_expression, cell_type, cell_type_to_mask):
 
         # Create a mask of size equal to the number of a cell type
-        # Mask is ture for cells that are not masked
+        # Mask is ture for cells that are masked
         mask = torch.ones(gene_expression.shape[0], dtype=torch.bool)
+
+        #check if cell type to mask is in the dataset
+        if cell_type_to_mask not in np.unique(cell_type):
+            raise ValueError(f"Cell type {cell_type_to_mask} not in the dataset")
+
+        # get the cells of the cell type to mask
         cells_to_mask = np.where(cell_type == cell_type_to_mask)[0]
-        mask[cells_to_mask] = False
+
+        mask[cells_to_mask] = True
 
         # save the masked gene expression
-        gene_expression_masked = gene_expression[~mask]
+        gene_expression_masked = gene_expression[mask]
 
         # set the gene expression of the masked cells to zero
         gene_expression[cells_to_mask] = 0
 
         # keep track of the cell types of the masked cells
-        cell_type_masked = cell_type[~cells_to_mask]
+        cell_type_masked = cell_type[cells_to_mask]
 
         return gene_expression, gene_expression_masked, mask, cell_type_masked
 
@@ -204,16 +210,16 @@ class FullImageConstracter(SpatialDataloader):
         # Create a mask of size equal to the number of a cell type
         # Mask is ture for cells that are not masked
         mask = torch.ones(gene_expression.shape[0], dtype=torch.bool)
-        mask[cells_to_mask] = False
+        mask[cells_to_mask] = True
 
         # save the masked gene expression
-        gene_expression_masked = gene_expression[~mask]
+        gene_expression_masked = gene_expression[mask]
 
         # set the gene expression of the masked cells to zero
         gene_expression[cells_to_mask] = 0
 
         # keep track of the cell types of the masked cells
-        cell_type_masked = cell_type[~mask]
+        cell_type_masked = cell_type[mask]
 
         return gene_expression, gene_expression_masked, mask, cell_type_masked
 
