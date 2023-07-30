@@ -16,11 +16,11 @@ def test(model, test_loader, criterion, device):
         data = data.to(device)
         with torch.no_grad():
             outputs = model(data.x.float(), data.edge_index.long())
-            loss = criterion(outputs[~data.mask], data.y.float())
+            loss = criterion(outputs[data.mask], data.y.float())
         total_test_loss += loss.item() * data.num_graphs
         test_celltypes_list.append(data.cell_type_masked)
         test_targets_list.append(data.y.float())
-        test_outputs_list.append(outputs[~data.mask])
+        test_outputs_list.append(outputs[data.mask])
 
     # Measure and print test loss and R2
     test_loss = total_test_loss / len(test_loader.dataset)
