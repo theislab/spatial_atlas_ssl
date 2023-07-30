@@ -146,7 +146,7 @@ class FullImageConstracter(SpatialDataloader):
         # create a mask of size equal to the number of cells
 
         # Mask is ture for cells that are masked
-        mask = torch.ones(gene_expression.shape[0], dtype=torch.bool)
+        mask = torch.zeros(gene_expression.shape[0], dtype=torch.bool)
 
         # randomly select some percentage of cells to mask
         num_cells_to_mask = int(gene_expression.shape[0] * 0.2)  # e.g., 10%
@@ -169,7 +169,7 @@ class FullImageConstracter(SpatialDataloader):
 
         # Create a mask of size equal to the number of a cell type
         # Mask is ture for cells that are masked
-        mask = torch.ones(gene_expression.shape[0], dtype=torch.bool)
+        mask = torch.zeros(gene_expression.shape[0], dtype=torch.bool)
 
         #check if cell type to mask is in the dataset
         if cell_type_to_mask not in np.unique(cell_type):
@@ -179,7 +179,10 @@ class FullImageConstracter(SpatialDataloader):
         cells_to_mask = np.where(cell_type == cell_type_to_mask)[0]
 
         mask[cells_to_mask] = True
+        # Count the number of True values in the mask
+        #um_true = sum(mask)
 
+        #print("Number of True values in the mask:", num_true)
         # save the masked gene expression
         gene_expression_masked = gene_expression[mask]
 
@@ -209,7 +212,7 @@ class FullImageConstracter(SpatialDataloader):
 
         # Create a mask of size equal to the number of a cell type
         # Mask is ture for cells that are not masked
-        mask = torch.ones(gene_expression.shape[0], dtype=torch.bool)
+        mask = torch.zeros(gene_expression.shape[0], dtype=torch.bool)
         mask[cells_to_mask] = True
 
         # save the masked gene expression
@@ -219,7 +222,7 @@ class FullImageConstracter(SpatialDataloader):
         gene_expression[cells_to_mask] = 0
 
         # keep track of the cell types of the masked cells
-        cell_type_masked = cell_type[mask]
+        cell_type_masked = cell_type[cells_to_mask]
 
         return gene_expression, gene_expression_masked, mask, cell_type_masked
 
