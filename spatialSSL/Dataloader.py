@@ -18,18 +18,17 @@ from spatialSSL.Dataset import EgoNetDataset
 
 class SpatialDatasetConstructor(ABC):
     def __init__(self, file_path: str, image_col: str, label_col: str, include_label: bool, radius: float,
-                 node_level: int = 1, batch_size: int = 64):
+                 node_level: int = 1):
         self.file_path = file_path
         self.image_col = image_col
         self.label_col = label_col
         self.node_level = node_level
         self.include_label = include_label
         self.radius = radius
-        self.batch_size = batch_size
 
         self.dataset = None
         self.adata = None
-        #self.adatas = {}
+        # self.adatas = {}
 
     def load_data(self):
         # Load data from .h5ad file and return a scanpy AnnData object
@@ -43,12 +42,12 @@ class SpatialDatasetConstructor(ABC):
 
         # Reindex the AnnData object using the sorted index of the DataFrame
         self.adata = self.adata[sorted_obs_df.index]
-
+        #self.adata.X = torch.tensor(self.adata.X., dtype=torch.double)
         # Create a dictionary of AnnData objects, one for each image
-        #self.adatas = {image_id: adata[adata.obs[self.image_col] == image_id] for image_id in
+        # self.adatas = {image_id: adata[adata.obs[self.image_col] == image_id] for image_id in
         #               np.unique(adata.obs[self.image_col])}
 
-        #del adata
+        # del adata
         """import os
         import psutil
         pid = os.getpid()
@@ -94,33 +93,33 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
         index = 0
 
         for image in tqdm(images, desc=f"Processing {len(images)} images"):
-            sub_adata = self.adata[self.adata.obs[self.image_col] == image]#.copy()
+            sub_adata = self.adata[self.adata.obs[self.image_col] == image]  # .copy()
             sq.gr.spatial_neighbors(adata=sub_adata, radius=self.radius, key_added="adjacency_matrix",
                                     coord_type="generic")
             edge_index_full, _ = from_scipy_sparse_matrix(sub_adata.obsp['adjacency_matrix_connectivities'])
             graphs[image] = (edge_index_full, index)
             index += len(sub_adata)
 
-
-            #graphs.append(edge_index_full)
+            # graphs.append(edge_index_full)
 
         subgraphs = []
 
-        #for image in tqdm(images, desc=f"Processing {len(images)} images"):
+        # for image in tqdm(images, desc=f"Processing {len(images)} images"):
         for idx in tqdm(range(len(self.adata)), desc=f"Processing {len(self.adata)} nodes"):
             # create subgraph for each node
             try:
 
                 offset = graphs[self.adata.obs[self.image_col][idx]][1]
 
-                subset, edge_index, mapping, edge_mask = k_hop_subgraph(node_idx=[idx - offset], edge_index=graphs[self.adata.obs[self.image_col][idx]][0],
+                subset, edge_index, mapping, edge_mask = k_hop_subgraph(node_idx=[idx - offset], edge_index=
+                graphs[self.adata.obs[self.image_col][idx]][0],
                                                                         num_hops=self.node_level, relabel_nodes=True)
                 # convert to pytorch tensor
-                #x = torch.tensor(subset.X.toarray(), dtype=torch.double)
-                #y = torch.tensor(subset.obs[self.label_col].values, dtype=torch.long)
-                #edge_index = torch.tensor(edge_index, dtype=torch.long)
-                #edge_mask = torch.tensor(edge_mask, dtype=torch.bool)
-                #mapping = torch.tensor(mapping, dtype=torch.long)
+                # x = torch.tensor(subset.X.toarray(), dtype=torch.double)
+                # y = torch.tensor(subset.obs[self.label_col].values, dtype=torch.long)
+                # edge_index = torch.tensor(edge_index, dtype=torch.long)
+                # edge_mask = torch.tensor(edge_mask, dtype=torch.bool)
+                # mapping = torch.tensor(mapping, dtype=torch.long)
                 # create data object
                 new_index = torch.nonzero(subset == idx - offset).squeeze()
                 mask = torch.ones(subset.shape[0], dtype=torch.bool)
@@ -131,13 +130,9 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
                 print(f"Error processing node {idx}")
                 continue
 
-
         return subgraphs
 
         # pre calculate the graphs for each image
-
-
-
 
         for image in tqdm(self.adatas.keys()):  # tqdm(images, desc=f"Processing {len(images)} images"):
 
@@ -168,13 +163,13 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
                 if edge_index.shape[1] == 0:
                     continue
 
-                #subgraph_data = x[subset].clone()
+                # subgraph_data = x[subset].clone()
 
                 # calculate new index of center node
                 new_index = torch.nonzero(subset == idx).squeeze()
 
                 # set center node feature to 0
-                #subgraph_data[new_index] = 0
+                # subgraph_data[new_index] = 0
 
                 # create mask for the center node, to calculate the loss only on the center node
                 mask = torch.ones(subset.shape[0], dtype=torch.bool)
@@ -185,7 +180,7 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
                 # graphs.append(
                 #   Data(x=subgraph_data, y=x[idx].view(1, 550), edge_index=edge_index, image=image, mask=mask))
 
-            #print(f"number of subgraphs: {len(graphs)}")
+            # print(f"number of subgraphs: {len(graphs)}")
 
             # remove adata from memory
             # self.adatas[image] = None

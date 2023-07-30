@@ -25,7 +25,8 @@ def train_model(model, expression_values, train_loader, val_loader, epochs=100, 
     epochs_no_improve = 0  # Number of epochs with no improvement in validation loss
     best_epoch = 0  # Epoch at which we get the best validation loss
 
-    x = torch.tensor(expression_values.toarray(), dtype=torch.double)
+    x = expression_values
+    #x = torch.tensor(expression_values.toarray(), dtype=torch.double)
     #expression_values = torch.texpression_values.to(device)
 
     for epoch in tqdm(range(epochs)):
@@ -40,13 +41,13 @@ def train_model(model, expression_values, train_loader, val_loader, epochs=100, 
             #data = data.to(device)
 
             # get expression of nodes in the subgraph
-            input=x[data.x].to(device)
+            input=torch.tensor(x[data.x].toarray(), dtype=torch.double).to(device)
 
             # set expression center nodes 0
             input[~data.mask] = 0
 
             # get expression of center node
-            target = x[data.y].to(device)
+            target = torch.tensor(x[data.y].toarray(), dtype=torch.double).to(device)
 
             # Forward pass
             outputs = model(input.float(), data.edge_index.to(device).long())
@@ -82,13 +83,13 @@ def train_model(model, expression_values, train_loader, val_loader, epochs=100, 
 
 
                 # get expression of nodes in the subgraph
-                input = x[data.x].to(device)
+                input = torch.tensor(x[data.x].toarray(), dtype=torch.double).to(device)
 
                 # set expression center nodes 0
                 input[~data.mask] = 0
 
                 # get expression of center node
-                target = x[data.y].to(device)
+                target = torch.tensor(x[data.y].toarray(), dtype=torch.double).to(device)
 
                 # Forward pass
                 outputs = model(input.float(), data.edge_index.to(device).long())
@@ -117,7 +118,7 @@ def train_model(model, expression_values, train_loader, val_loader, epochs=100, 
             # Check early stopping condition
             if epochs_no_improve == patience:
                 print(
-                    f'Early stopping! Epoch: {epoch}, Best Epoch: {best_epoch}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}')
+                    f'Early stopping! Epoch: {epoch}, Best Epoch: {best_epoch}, Train Loss: {train_loss[best_epoch]:.4f}, Val Loss: {val_losses[best_epoch]:.4f}')
                 break
 
         print(
