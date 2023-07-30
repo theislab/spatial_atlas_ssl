@@ -49,7 +49,7 @@ def train_model(model, expression_values, train_loader, val_loader, epochs=100, 
             target = x[data.y].to(device)
 
             # Forward pass
-            outputs = model(input.float(), data.edge_index.long())
+            outputs = model(input.float(), data.edge_index.to(device).long())
             loss = criterion(outputs[~data.mask], target.float())
 
             # Backward and optimize
