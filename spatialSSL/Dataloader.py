@@ -27,11 +27,18 @@ class SpatialDatasetConstructor(ABC):
         self.batch_size = batch_size
 
         self.dataset = None
-        self.adata = None
+        #self.adata = None
+        self.adatas = {}
 
     def load_data(self):
         # Load data from .h5ad file and return a scanpy AnnData object
-        self.adata = sc.read(self.file_path)
+        adata = sc.read(self.file_path)
+
+        # Create a dictionary of AnnData objects, one for each image
+        self.adatas = {image_id: adata[adata.obs[self.image_col] == image_id].copy() for image_id in
+                          np.unique(adata.obs[self.image_col])}
+
+        del adata
         """import os
         import psutil
         pid = os.getpid()
@@ -69,14 +76,15 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
 
     def construct_graph(self):
         # Constructing graph from coordinates using scanpy's spatial_neighbors function
-        images = np.unique(self.adata.obs[self.image_col])
+        #images = np.unique(self.adata.obs[self.image_col])
 
         graphs = []
 
-        for image in tqdm(images, desc=f"Processing {len(images)} images"):
+        for image in self.adatas.keys():#tqdm(images, desc=f"Processing {len(images)} images"):
 
+            sub_adata = self.adatas[image]
             # subset adata to only include cells from the current image
-            sub_adata = self.adata[self.adata.obs[self.image_col] == image]#.copy()
+            #sub_adata = self.adata[self.adata.obs[self.image_col] == image]#.copy()
 
             # calculate graph using neighbors function
             sq.gr.spatial_neighbors(adata=sub_adata, radius=self.radius, key_added="adjacency_matrix",
@@ -119,8 +127,11 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
 
             print(f"number of subgraphs: {len(graphs)}")
 
+            # remove adata from memory
+            self.adatas[image] = None
+
             # remove cells from current image from adata
-            self.adata = self.adata[self.adata.obs[self.image_col] != image]
+            #self.adata = self.adata[self.adata.obs[self.image_col] != image]
 
         return graphs
         # graphs.append(Data(x=x, edge_index=edge_index, image=image))
