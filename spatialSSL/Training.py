@@ -37,7 +37,7 @@ def train_model(model, expression_values, train_loader, val_loader, epochs=100, 
 
         for data in train_loader:
             # Transfer data to GPU
-            data = data.to(device)
+            #data = data.to(device)
 
             # get expression of nodes in the subgraph
             input=x[data.x].to(device)
