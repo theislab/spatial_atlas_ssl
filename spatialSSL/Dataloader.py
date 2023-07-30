@@ -27,7 +27,7 @@ class SpatialDatasetConstructor(ABC):
         self.batch_size = batch_size
 
         self.dataset = None
-        #self.adata = None
+        # self.adata = None
         self.adatas = {}
 
     def load_data(self):
@@ -35,10 +35,10 @@ class SpatialDatasetConstructor(ABC):
         adata = sc.read(self.file_path)
 
         # Create a dictionary of AnnData objects, one for each image
-        self.adatas = {image_id: adata[adata.obs[self.image_col] == image_id].copy() for image_id in
-                          np.unique(adata.obs[self.image_col])}
+        self.adatas = {image_id: adata[adata.obs[self.image_col] == image_id] for image_id in
+                       np.unique(adata.obs[self.image_col])}
 
-        del adata
+        #del adata
         """import os
         import psutil
         pid = os.getpid()
@@ -76,15 +76,15 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
 
     def construct_graph(self):
         # Constructing graph from coordinates using scanpy's spatial_neighbors function
-        #images = np.unique(self.adata.obs[self.image_col])
+        # images = np.unique(self.adata.obs[self.image_col])
 
         graphs = []
 
-        for image in tqdm(self.adatas.keys()):#tqdm(images, desc=f"Processing {len(images)} images"):
+        for image in tqdm(self.adatas.keys()):  # tqdm(images, desc=f"Processing {len(images)} images"):
 
             sub_adata = self.adatas[image]
             # subset adata to only include cells from the current image
-            #sub_adata = self.adata[self.adata.obs[self.image_col] == image]#.copy()
+            # sub_adata = self.adata[self.adata.obs[self.image_col] == image]#.copy()
 
             # calculate graph using neighbors function
             sq.gr.spatial_neighbors(adata=sub_adata, radius=self.radius, key_added="adjacency_matrix",
@@ -93,14 +93,15 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
             edge_index_full, _ = from_scipy_sparse_matrix(sub_adata.obsp['adjacency_matrix_connectivities'])
 
             # convert to pytorch tensor
-            x = torch.tensor(sub_adata.X.toarray(), dtype=torch.double)
+            # x = torch.tensor(sub_adata.X.toarray(), dtype=torch.double)
 
             for idx in tqdm(range(len(sub_adata)), desc=f"Processing {len(sub_adata)} nodes", leave=False):
                 # create subgraph for each node
 
                 try:
                     subset, edge_index, mapping, edge_mask = k_hop_subgraph(node_idx=[idx], edge_index=edge_index_full,
-                                                                            num_hops=self.node_level, relabel_nodes=True)
+                                                                            num_hops=self.node_level,
+                                                                            relabel_nodes=True)
                 except IndexError:
                     continue
 
@@ -108,34 +109,34 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
                 if edge_index.shape[1] == 0:
                     continue
 
-                subgraph_data = x[subset].clone()
+                #subgraph_data = x[subset].clone()
 
                 # calculate new index of center node
                 new_index = torch.nonzero(subset == idx).squeeze()
 
                 # set center node feature to 0
-                subgraph_data[new_index] = 0
+                #subgraph_data[new_index] = 0
 
                 # create mask for the center node, to calculate the loss only on the center node
-                mask = torch.ones(subgraph_data.shape[0], dtype=torch.bool)
+                mask = torch.ones(subset.shape[0], dtype=torch.bool)
                 mask[new_index] = False
 
                 graphs.append(
-                    Data(x=subgraph_data, y=x[idx].view(1, 550), edge_index=edge_index, image=image, mask=mask))
+                    Data(x=subset, y=idx, edge_index=edge_index, image=image, mask=mask))
+                # graphs.append(
+                #   Data(x=subgraph_data, y=x[idx].view(1, 550), edge_index=edge_index, image=image, mask=mask))
 
-
-
-            print(f"number of subgraphs: {len(graphs)}")
+            #print(f"number of subgraphs: {len(graphs)}")
 
             # remove adata from memory
-            self.adatas[image] = None
+            # self.adatas[image] = None
 
             # remove cells from current image from adata
-            #self.adata = self.adata[self.adata.obs[self.image_col] != image]
+            # self.adata = self.adata[self.adata.obs[self.image_col] != image]
 
         return graphs
         # graphs.append(Data(x=x, edge_index=edge_index, image=image))
-        #if self.include_label:
+        # if self.include_label:
         #                 y = torch.tensor(sub_adata.obs[self.label_col][mapping], dtype=torch.long)
         #                 graphs.append(Data(x=x[subset], edge_index=edge_index, y=y, image=image))
         #             else:
