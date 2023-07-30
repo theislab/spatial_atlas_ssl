@@ -11,13 +11,13 @@ from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 from torch_geometric.utils import from_networkx, from_scipy_sparse_matrix, k_hop_subgraph
 from tqdm.auto import tqdm
-from spatialSSL.Dataset import EgoNetDataset, FullImageDataset
+#from spatialSSL.Dataset import EgoNetDataset, FullImageDataset
 import torch
 
 
 class SpatialDataloader(ABC):
     def __init__(self, file_path: str, image_col: str, label_col: str, include_label: bool, radius: float,
-                 node_level: int = 1, batch_size: int = 64, split_percent: tuple = (0.8, 0.1, 0.1), masked_method: str = 'random' , *args, **kwargs):
+                 node_level: int = 1, batch_size: int = 64, split_percent: tuple = (0.8, 0.1, 0.1), mask_method: str = 'random' , *args, **kwargs):
         self.file_path = file_path
         self.image_col = image_col
         self.label_col = label_col
@@ -26,7 +26,7 @@ class SpatialDataloader(ABC):
         self.radius = radius
         self.batch_size = batch_size
         self.split_percent = split_percent
-        self.masked_method = masked_method
+        self.mask_method = mask_method
         self.dataset = None
         self.adata = None
         self.celltype_to_mask = None
@@ -124,11 +124,11 @@ class FullImageConstracter(SpatialDataloader):
             gene_expression = sub_adata.X.toarray()
 
             # select masking technique
-            if self.masked_method == 'random':
+            if self.mask_method == 'random':
                 gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_random(gene_expression, cell_type)
-            elif self.masked_method == 'cell_type':
+            elif self.mask_method == 'cell_type':
                 gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_by_cell_type(gene_expression, cell_type, cell_type_to_mask=self.celltype_to_mask)
-            elif self.masked_method == 'niche':
+            elif self.mask_method == 'niche':
                 gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_by_niche(gene_expression, cell_type, edge_index)
 
             # create a mask of size equal to the number of cells
@@ -136,7 +136,7 @@ class FullImageConstracter(SpatialDataloader):
 
             gene_expression = torch.tensor(gene_expression, dtype=torch.double)
             gene_expression_masked = torch.tensor(gene_expression_masked, dtype=torch.double)
-            print(cell_type.shape)
+            #print(cell_type.shape)
             graph = Data(x=gene_expression, edge_index=edge_index, y=gene_expression_masked, mask=mask,
                          cell_type=cell_type, cell_type_masked=cell_type_masked, image=image)
             graphs.append(graph)
