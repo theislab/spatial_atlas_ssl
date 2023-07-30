@@ -117,6 +117,8 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
 
 
 
+            print(f"number of subgraphs: {len(graphs)}")
+
             # remove cells from current image from adata
             self.adata = self.adata[self.adata.obs[self.image_col] != image]
 
