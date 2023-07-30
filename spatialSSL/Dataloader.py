@@ -80,7 +80,7 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
 
         graphs = []
 
-        for image in self.adatas.keys():#tqdm(images, desc=f"Processing {len(images)} images"):
+        for image in tqdm(self.adatas.keys()):#tqdm(images, desc=f"Processing {len(images)} images"):
 
             sub_adata = self.adatas[image]
             # subset adata to only include cells from the current image
