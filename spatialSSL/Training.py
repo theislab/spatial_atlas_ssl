@@ -118,7 +118,7 @@ def train_model(model, expression_values, train_loader, val_loader, epochs=100, 
             # Check early stopping condition
             if epochs_no_improve == patience:
                 print(
-                    f'Early stopping! Epoch: {epoch}, Best Epoch: {best_epoch}, Train Loss: {train_loss[best_epoch]:.4f}, Val Loss: {val_losses[best_epoch]:.4f}')
+                    f'Early stopping! Epoch: {epoch}, Best Epoch: {best_epoch}, Train Loss: {train_losses[best_epoch]:.4f}, Val Loss: {val_losses[best_epoch]:.4f}')
                 break
 
         print(
