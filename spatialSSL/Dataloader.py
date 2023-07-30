@@ -94,7 +94,7 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
                     subset, edge_index, mapping, edge_mask = k_hop_subgraph(node_idx=[idx], edge_index=edge_index_full,
                                                                             num_hops=self.node_level, relabel_nodes=True)
                 except IndexError:
-                    break
+                    continue
 
                 # skip if subgraph is empty, zero edges
                 if edge_index.shape[1] == 0:
