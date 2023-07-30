@@ -96,7 +96,7 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
                 except IndexError:
                     break
 
-                # skill if subgraph is empty
+                # skip if subgraph is empty, zero edges
                 if edge_index.shape[1] == 0:
                     continue
 
