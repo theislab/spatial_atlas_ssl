@@ -60,15 +60,15 @@ def train_model(model, expression_values, train_loader, val_loader, epochs=100, 
 
             # Measure train loss and r2 score
             total_loss += loss.item() * data.num_graphs
-            targets_list.append(target.float())
-            outputs_list.append(outputs[~data.mask])
+            #targets_list.append(target.float())
+            #outputs_list.append(outputs[~data.mask])
 
         # measure and print r2 and train loss
         train_loss = total_loss / len(train_loader.dataset)
         train_losses.append(train_loss)
-        train_r2 = r2_score(torch.cat(targets_list).cpu().detach().numpy(),
-                            torch.cat(outputs_list).cpu().detach().numpy())
-        train_r2_scores.append(train_r2)
+        #train_r2 = r2_score(torch.cat(targets_list).cpu().detach().numpy(),
+        #                    torch.cat(outputs_list).cpu().detach().numpy())
+        #train_r2_scores.append(train_r2)
 
         # Validation phase
         model.eval()  # Set the model to evaluation mode
@@ -97,15 +97,15 @@ def train_model(model, expression_values, train_loader, val_loader, epochs=100, 
 
 
             total_val_loss += loss.item() * data.num_graphs
-            val_targets_list.append(target.float())
-            val_outputs_list.append(outputs[~data.mask])
+            #val_targets_list.append(target.float())
+            #val_outputs_list.append(outputs[~data.mask])
 
         # Measure and print validation loss and R2
         val_loss = total_val_loss / len(val_loader.dataset)
         val_losses.append(val_loss)
-        val_r2 = r2_score(torch.cat(val_targets_list).cpu().detach().numpy(),
-                          torch.cat(val_outputs_list).cpu().detach().numpy())
-        val_r2_scores.append(val_r2)
+        #val_r2 = r2_score(torch.cat(val_targets_list).cpu().detach().numpy(),
+        #                  torch.cat(val_outputs_list).cpu().detach().numpy())
+        #val_r2_scores.append(val_r2)
 
         # Early stopping and saving best parameters
         if val_loss < best_val_loss:
@@ -122,6 +122,6 @@ def train_model(model, expression_values, train_loader, val_loader, epochs=100, 
                 break
 
         print(
-            f"Epoch {epoch + 1}/{epochs}, train loss: {train_loss:.4f}, train r2: {train_r2:.4f},  val loss: {val_loss:.4f}, val r2: {val_r2:.4f}")
+            f"Epoch {epoch + 1}/{epochs}, train loss: {train_loss:.4f}, train r2: {0.00:.4f},  val loss: {val_loss:.4f}, val r2: {0.00:.4f}")
 
     return train_losses, val_losses, train_r2_scores, val_r2_scores
