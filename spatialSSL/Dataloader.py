@@ -2,7 +2,6 @@
 from abc import ABC, abstractmethod
 
 # Third-Party Library Imports
-import networkx as nx
 import numpy as np
 import scanpy as sc
 import squidpy as sq
@@ -77,7 +76,7 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
         for image in tqdm(images, desc=f"Processing {len(images)} images"):
 
             # subset adata to only include cells from the current image
-            sub_adata = self.adata[self.adata.obs[self.image_col] == image].copy()
+            sub_adata = self.adata[self.adata.obs[self.image_col] == image]#.copy()
 
             # calculate graph using neighbors function
             sq.gr.spatial_neighbors(adata=sub_adata, radius=self.radius, key_added="adjacency_matrix",
@@ -94,9 +93,12 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
                 try:
                     subset, edge_index, mapping, edge_mask = k_hop_subgraph(node_idx=[idx], edge_index=edge_index_full,
                                                                             num_hops=self.node_level, relabel_nodes=True)
-                except Exception as e:
-                    print(e)
-                    print("error in k_hop_subgraph function: ", idx, image)
+                except IndexError:
+                    break
+
+                # skill if subgraph is empty
+                if edge_index.shape[1] == 0:
+                    continue
 
                 subgraph_data = x[subset].clone()
 
@@ -113,22 +115,17 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
                 graphs.append(
                     Data(x=subgraph_data, y=x[idx].view(1, 550), edge_index=edge_index, image=image, mask=mask))
 
-                """if self.include_label:
-                    y = torch.tensor(sub_adata.obs[self.label_col][mapping], dtype=torch.long)
-                    graphs.append(Data(x=x[subset], edge_index=edge_index, y=y, image=image))
-                else:"""
 
-            """import os
-            import psutil
-            pid = os.getpid()
-            python_process = psutil.Process(pid)
-            memoryUse = python_process.memory_info()[0] / 2. ** 30  # memory use in GB...I think
-            print(f'memory use: {memoryUse:.2f} GB'.format(**locals()))
-            """
+
+            # remove cells from current image from adata
+            self.adata = self.adata[self.adata.obs[self.image_col] != image]
 
         return graphs
         # graphs.append(Data(x=x, edge_index=edge_index, image=image))
-
+        #if self.include_label:
+        #                 y = torch.tensor(sub_adata.obs[self.label_col][mapping], dtype=torch.long)
+        #                 graphs.append(Data(x=x[subset], edge_index=edge_index, y=y, image=image))
+        #             else:
         # Create dataset from graphs
         # self.dataset = EgoNetDataset(graphs=graphs, num_hops=self.node_level)
         # loader = DataLoader(self.dataset, batch_size=self.batch_size, shuffle=True)
