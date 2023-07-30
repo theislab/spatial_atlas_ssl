@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 
 # Third-Party Library Imports
 import numpy as np
+import pandas as pd
 import scanpy as sc
 import squidpy as sq
 import torch
@@ -27,16 +28,25 @@ class SpatialDatasetConstructor(ABC):
         self.batch_size = batch_size
 
         self.dataset = None
-        # self.adata = None
-        self.adatas = {}
+        self.adata = None
+        #self.adatas = {}
 
     def load_data(self):
         # Load data from .h5ad file and return a scanpy AnnData object
-        adata = sc.read(self.file_path)
+        self.adata = sc.read(self.file_path)
+
+        # Extract the column values to a pandas DataFrame
+        obs_df = self.adata.obs.copy()
+
+        # Sort the DataFrame by the specified column
+        sorted_obs_df = obs_df.sort_values(by=self.image_col)
+
+        # Reindex the AnnData object using the sorted index of the DataFrame
+        self.adata = self.adata[sorted_obs_df.index]
 
         # Create a dictionary of AnnData objects, one for each image
-        self.adatas = {image_id: adata[adata.obs[self.image_col] == image_id] for image_id in
-                       np.unique(adata.obs[self.image_col])}
+        #self.adatas = {image_id: adata[adata.obs[self.image_col] == image_id] for image_id in
+        #               np.unique(adata.obs[self.image_col])}
 
         #del adata
         """import os
@@ -75,10 +85,59 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
         super(EgoNetDatasetConstructor, self).__init__(*args, **kwargs)
 
     def construct_graph(self):
-        # Constructing graph from coordinates using scanpy's spatial_neighbors function
-        # images = np.unique(self.adata.obs[self.image_col])
 
-        graphs = []
+        # Constructing graph from coordinates using scanpy's spatial_neighbors function
+        images = pd.unique(self.adata.obs[self.image_col])
+
+        graphs = {}
+
+        index = 0
+
+        for image in tqdm(images, desc=f"Processing {len(images)} images"):
+            sub_adata = self.adata[self.adata.obs[self.image_col] == image]#.copy()
+            sq.gr.spatial_neighbors(adata=sub_adata, radius=self.radius, key_added="adjacency_matrix",
+                                    coord_type="generic")
+            edge_index_full, _ = from_scipy_sparse_matrix(sub_adata.obsp['adjacency_matrix_connectivities'])
+            graphs[image] = (edge_index_full, index)
+            index += len(sub_adata)
+
+
+            #graphs.append(edge_index_full)
+
+        subgraphs = []
+
+        #for image in tqdm(images, desc=f"Processing {len(images)} images"):
+        for idx in tqdm(range(len(self.adata)), desc=f"Processing {len(self.adata)} nodes"):
+            # create subgraph for each node
+            try:
+
+                offset = graphs[self.adata.obs[self.image_col][idx]][1]
+
+                subset, edge_index, mapping, edge_mask = k_hop_subgraph(node_idx=[idx - offset], edge_index=graphs[self.adata.obs[self.image_col][idx]][0],
+                                                                        num_hops=self.node_level, relabel_nodes=True)
+                # convert to pytorch tensor
+                #x = torch.tensor(subset.X.toarray(), dtype=torch.double)
+                #y = torch.tensor(subset.obs[self.label_col].values, dtype=torch.long)
+                #edge_index = torch.tensor(edge_index, dtype=torch.long)
+                #edge_mask = torch.tensor(edge_mask, dtype=torch.bool)
+                #mapping = torch.tensor(mapping, dtype=torch.long)
+                # create data object
+                new_index = torch.nonzero(subset == idx - offset).squeeze()
+                mask = torch.ones(subset.shape[0], dtype=torch.bool)
+                mask[new_index] = False
+                data = Data(x=subset + offset, y=idx, edge_index=edge_index, mask=mask)
+                subgraphs.append(data)
+            except Exception as e:
+                print(f"Error processing node {idx}")
+                continue
+
+
+        return subgraphs
+
+        # pre calculate the graphs for each image
+
+
+
 
         for image in tqdm(self.adatas.keys()):  # tqdm(images, desc=f"Processing {len(images)} images"):
 

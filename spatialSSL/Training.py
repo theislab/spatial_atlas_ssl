@@ -4,7 +4,7 @@ from torch import nn, optim
 from tqdm.auto import tqdm
 
 
-def train_model(model, train_loader, val_loader, epochs=100, lr=0.001, patience=5):
+def train_model(model, expression_values, train_loader, val_loader, epochs=100, lr=0.001, patience=5):
     # Set device for training
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
@@ -25,6 +25,9 @@ def train_model(model, train_loader, val_loader, epochs=100, lr=0.001, patience=
     epochs_no_improve = 0  # Number of epochs with no improvement in validation loss
     best_epoch = 0  # Epoch at which we get the best validation loss
 
+    x = torch.tensor(expression_values.toarray(), dtype=torch.double)
+    #expression_values = torch.texpression_values.to(device)
+
     for epoch in tqdm(range(epochs)):
         # Training phase
         model.train()
@@ -36,9 +39,18 @@ def train_model(model, train_loader, val_loader, epochs=100, lr=0.001, patience=
             # Transfer data to GPU
             data = data.to(device)
 
+            # get expression of nodes in the subgraph
+            input=x[data.x].to(device)
+
+            # set expression center nodes 0
+            input[~data.mask] = 0
+
+            # get expression of center node
+            target = x[data.y].to(device)
+
             # Forward pass
-            outputs = model(data.x.float(), data.edge_index.long())
-            loss = criterion(outputs[~data.mask], data.y.float())
+            outputs = model(input.float(), data.edge_index.long())
+            loss = criterion(outputs[~data.mask], target.float())
 
             # Backward and optimize
             optimizer.zero_grad()
@@ -47,7 +59,7 @@ def train_model(model, train_loader, val_loader, epochs=100, lr=0.001, patience=
 
             # Measure train loss and r2 score
             total_loss += loss.item() * data.num_graphs
-            targets_list.append(data.y.float())
+            targets_list.append(target.float())
             outputs_list.append(outputs[~data.mask])
 
         # measure and print r2 and train loss
@@ -67,11 +79,24 @@ def train_model(model, train_loader, val_loader, epochs=100, lr=0.001, patience=
             data = data.to(device)
 
             with torch.no_grad():
-                outputs = model(data.x.float(), data.edge_index.long())
-                loss = criterion(outputs[~data.mask], data.y.float())
+
+
+                # get expression of nodes in the subgraph
+                input = x[data.x].to(device)
+
+                # set expression center nodes 0
+                input[~data.mask] = 0
+
+                # get expression of center node
+                target = x[data.y].to(device)
+
+                # Forward pass
+                outputs = model(input.float(), data.edge_index.long())
+                loss = criterion(outputs[~data.mask], target.float())
+
 
             total_val_loss += loss.item() * data.num_graphs
-            val_targets_list.append(data.y.float())
+            val_targets_list.append(target.float())
             val_outputs_list.append(outputs[~data.mask])
 
         # Measure and print validation loss and R2
