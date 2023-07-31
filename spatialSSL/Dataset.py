@@ -1,13 +1,10 @@
-from torch_geometric.data import Dataset, Data
-from torch_geometric.utils import k_hop_subgraph
-from torch_geometric.data import InMemoryDataset, Data
-from tqdm.auto import tqdm
-from torch_geometric.utils import from_scipy_sparse_matrix
-from spatialSSL.Dataloader import FullImageDatasetConstructor
-import torch
-import numpy as np
-import scanpy as sc
 import os
+
+import torch
+from torch_geometric.data import Dataset
+from torch_geometric.data import InMemoryDataset, Data
+from torch_geometric.utils import k_hop_subgraph
+
 
 class EgoNetDataset(Dataset):
     def __init__(self, graphs, num_hops=1):
@@ -62,7 +59,7 @@ class InMemoryGraphDataset(InMemoryDataset):
 
     def __init__(self, root,data_names, *args, **kwargs):
         self.data_names = data_names
-        self.data_loader = FullImageConstracter(*args, **kwargs)
+        #self.data_loader = FullImageConstracter(*args, **kwargs)
         self.root = root
         super(InMemoryDataset, self).__init__(root, transform=None, pre_transform=None)
 
