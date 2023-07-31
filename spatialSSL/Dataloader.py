@@ -18,7 +18,7 @@ from spatialSSL.Dataset import EgoNetDataset
 
 class SpatialDatasetConstructor(ABC):
     def __init__(self, file_path: str, image_col: str, label_col: str, include_label: bool, radius: float,
-                 node_level: int = 1):
+                 node_level: int = 1,mask_method = 'random', **kwargs):
         self.file_path = file_path
         self.image_col = image_col
         self.label_col = label_col
@@ -26,7 +26,6 @@ class SpatialDatasetConstructor(ABC):
         self.include_label = include_label
         self.radius = radius
 
-        self.split_percent = split_percent
         self.mask_method = mask_method
         self.dataset = None
         self.adata = None

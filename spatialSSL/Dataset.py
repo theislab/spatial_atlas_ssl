@@ -3,7 +3,7 @@ from torch_geometric.utils import k_hop_subgraph
 from torch_geometric.data import InMemoryDataset, Data
 from tqdm.auto import tqdm
 from torch_geometric.utils import from_scipy_sparse_matrix
-from spatialSSL.Dataloader import FullImageConstracter
+from spatialSSL.Dataloader import FullImageDatasetConstructor
 import torch
 import numpy as np
 import scanpy as sc
