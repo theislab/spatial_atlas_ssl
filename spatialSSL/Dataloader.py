@@ -246,6 +246,8 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
     def masking_random(gene_expression, cell_type):
         # create a mask of size equal to the number of cells
 
+        # Convert to LIL format for efficient modifications
+        gene_expression = gene_expression.tolil()
         # Mask is ture for cells that are masked
         mask = torch.zeros(gene_expression.shape[0], dtype=torch.bool)
 
@@ -260,6 +262,9 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
         # set the gene expression of the masked cells to zero
         gene_expression[cells_to_mask] = 0
 
+        # Convert back to CSR format for efficient operations
+        gene_expression = gene_expression.tocsr()
+
         # keep track of the cell types of the masked cells
         cell_type_masked = cell_type[cells_to_mask]
 
@@ -268,6 +273,11 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
     @staticmethod
     def masking_by_cell_type(gene_expression, cell_type, cell_type_to_mask):
 
+
+        
+        # Convert to LIL format for efficient modifications
+        gene_expression = gene_expression.tolil()
+        
         # Create a mask of size equal to the number of a cell type
         # Mask is ture for cells that are masked
         mask = torch.zeros(gene_expression.shape[0], dtype=torch.bool)
@@ -285,6 +295,9 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
 
         # set the gene expression of the masked cells to zero
         gene_expression[cells_to_mask] = 0
+        
+        # Convert back to CSR format for efficient operations
+        gene_expression = gene_expression.tocsr()
 
         # keep track of the cell types of the masked cells
         cell_type_masked = cell_type[cells_to_mask]
