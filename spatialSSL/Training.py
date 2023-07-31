@@ -49,18 +49,24 @@ def train_epoch(model, loader, optimizer, criterion, gene_expression=None, train
 
 def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100, patience=5, model_path=None,
           gene_expression=None):
+
+    model = model.to(device)
+
     # records losses
     train_losses = []
     val_losses = []
     train_r2_scores = []
     val_r2_scores = []
 
+    # records best val loss
     best_val_loss = float('inf')
     best_epoch = 0
     epochs_no_improve = 0
 
+    # records time
     start_time = time.time()
 
+    # training loop
     for epoch in tqdm(range(num_epochs), desc='Training model'):
         epoch_start_time = time.time()
         train_loss, train_r2 = train_epoch(model, train_loader, optimizer, criterion=criterion,
@@ -89,30 +95,30 @@ def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100,
         print(f"Epoch {epoch + 1}/{num_epochs}, train loss: {train_loss:.4f}, train r2: {train_r2:.4f},  val loss: {val_loss:.4f}, val r2: {val_r2:.4f}, Time: {time.time() - epoch_start_time:.2f}s")
 
     print(f"Best val loss: {best_val_loss:.4f}, at epoch {best_epoch + 1}")
-    return TrainResults(train_loss, train_r2, val_loss, val_r2, best_epoch, epoch + 1, time.time() - start_time)
+    return TrainResults(train_losses, train_r2_scores, val_losses, val_r2_scores, best_epoch, epoch + 1, time.time() - start_time)
 
 
 class TrainResults():
     def __init__(self, train_losses, train_r2s, val_losses, val_r2s, best_epoch, epochs_trained, total_training_time):
-        self.train_loss = train_losses
-        self.train_r2 = train_r2s
-        self.val_loss = val_losses
-        self.val_r2 = val_r2s
+        self.train_losses = train_losses
+        self.train_r2s = train_r2s
+        self.val_losses = val_losses
+        self.val_r2s = val_r2s
         self.best_epoch = best_epoch
         self.epochs_trained = epochs_trained
         self.total_training_time = total_training_time
 
     def __str__(self):
-        return f"Best val loss: {self.val_loss[self.best_epoch]:.4f}, at epoch {self.best_epoch + 1}"
+        return f"Best val loss: {self.val_losses[self.best_epoch]:.4f}, at epoch {self.best_epoch + 1}"
 
     def plot(self):
         import matplotlib.pyplot as plt
-        plt.plot(self.train_loss, label='train loss')
-        plt.plot(self.val_loss, label='val loss')
+        plt.plot(self.train_losses, label='train loss')
+        plt.plot(self.val_losses, label='val loss')
         plt.legend()
         plt.show()
 
-        plt.plot(self.train_r2, label='train r2')
-        plt.plot(self.val_r2, label='val r2')
+        plt.plot(self.train_r2s, label='train r2')
+        plt.plot(self.val_r2s, label='val r2')
         plt.legend()
         plt.show()
