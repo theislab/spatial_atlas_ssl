@@ -125,8 +125,8 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
                 # mapping = torch.tensor(mapping, dtype=torch.long)
                 # create data object
                 new_index = torch.nonzero(subset == idx - offset).squeeze()
-                mask = torch.ones(subset.shape[0], dtype=torch.bool)
-                mask[new_index] = False
+                mask = torch.zeros(subset.shape[0], dtype=torch.bool)
+                mask[new_index] = True
                 data = Data(x=subset + offset, y=idx, edge_index=edge_index, mask=mask)
                 subgraphs.append(data)
             except Exception as e:
