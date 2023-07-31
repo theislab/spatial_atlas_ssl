@@ -23,10 +23,11 @@ def train_epoch(model, loader, optimizer, criterion, gene_expression=None, train
                 optimizer.zero_grad()
 
             if gene_expression is None:
-                data = data.to(device)
-                outputs = model(data.x.float(), data.edge_index.long())
-                loss = criterion(outputs[data.mask], data.y.float())
-                targets_list.append(data.y.cpu().detach())
+                expression = torch.tensor(data.x[0].toarray(), dtype=torch.double).to(device)
+                outputs = model(expression.float(), data.edge_index.long())
+                expression_masked = torch.tensor(data.y[0].toarray(), dtype=torch.double).to(device)
+                loss = criterion(outputs[data.mask], expression_masked.float())
+                targets_list.append(expression_masked.cpu().detach())
             else:
                 input = torch.tensor(gene_expression[data.x].toarray(), dtype=torch.double).to(device)
                 input[data.mask] = 0

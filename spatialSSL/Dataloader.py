@@ -234,11 +234,11 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
                 gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_by_niche(gene_expression, cell_type, edge_index)
 
             # convert to tensors
-            gene_expression = torch.tensor(gene_expression, dtype=torch.double)
-            gene_expression_masked = torch.tensor(gene_expression_masked, dtype=torch.double)
+            #gene_expression = torch.tensor(gene_expression, dtype=torch.double)
+            #gene_expression_masked = torch.tensor(gene_expression_masked, dtype=torch.double)
             #print(cell_type.shape)
             graph = Data(x=gene_expression, edge_index=edge_index, y=gene_expression_masked, mask=mask,
-                         cell_type=cell_type, cell_type_masked=cell_type_masked, image=image)
+                         cell_type=cell_type, cell_type_masked=cell_type_masked, image=image, num_nodes = gene_expression.shape[0])
             graphs.append(graph)
         return graphs
 
