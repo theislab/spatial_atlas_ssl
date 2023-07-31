@@ -3,10 +3,12 @@ from torch import nn, optim
 from sklearn.metrics import r2_score
 import time
 
+from tqdm.auto import tqdm
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-def train_epoch(model, loader, optimizer, criterion, training=True, gene_expression=None):
+def train_epoch(model, loader, optimizer, criterion, gene_expression=None, training=True):
     if training:
         model.train()
     else:
@@ -47,15 +49,30 @@ def train_epoch(model, loader, optimizer, criterion, training=True, gene_express
 
 def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100, patience=5, model_path=None,
           gene_expression=None):
+    # records losses
+    train_losses = []
+    val_losses = []
+    train_r2_scores = []
+    val_r2_scores = []
+
     best_val_loss = float('inf')
     best_epoch = 0
     epochs_no_improve = 0
 
-    for epoch in range(num_epochs):
-        start_time = time.time()
-        train_loss, train_r2 = train_epoch(model, train_loader, optimizer, criterion, gene_expression, training=True)
-        val_loss, val_r2 = train_epoch(model, val_loader, criterion, gene_expression, training=False)
-        # scheduler.step() # Decrease learning rate by scheduler
+    start_time = time.time()
+
+    for epoch in tqdm(range(num_epochs), desc='Training model'):
+        epoch_start_time = time.time()
+        train_loss, train_r2 = train_epoch(model, train_loader, optimizer, criterion=criterion,
+                                           gene_expression=gene_expression, training=True)
+        val_loss, val_r2 = train_epoch(model, val_loader, optimizer=None, criterion=criterion,
+                                       gene_expression=gene_expression, training=False)
+
+        # records losses
+        train_losses.append(train_loss)
+        val_losses.append(val_loss)
+        train_r2_scores.append(train_r2)
+        val_r2_scores.append(val_r2)
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
@@ -66,10 +83,36 @@ def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100,
         else:
             epochs_no_improve += 1
             if epochs_no_improve == patience:
-                print('Early stopping!')
+                print('Early stopping triggered!, no improvement in val loss for {} epochs'.format(patience))
                 break
 
-        print(
-            f"Epoch {epoch + 1}/{num_epochs}, train loss: {train_loss:.4f}, train r2: {train_r2:.4f},  val loss: {val_loss:.4f}, val r2: {val_r2:.4f}, Time: {time.time() - start_time}s")
+        print(f"Epoch {epoch + 1}/{num_epochs}, train loss: {train_loss:.4f}, train r2: {train_r2:.4f},  val loss: {val_loss:.4f}, val r2: {val_r2:.4f}, Time: {time.time() - epoch_start_time:.2f}s")
 
     print(f"Best val loss: {best_val_loss:.4f}, at epoch {best_epoch + 1}")
+    return TrainResults(train_loss, train_r2, val_loss, val_r2, best_epoch, epoch + 1, time.time() - start_time)
+
+
+class TrainResults():
+    def __init__(self, train_losses, train_r2s, val_losses, val_r2s, best_epoch, epochs_trained, total_training_time):
+        self.train_loss = train_losses
+        self.train_r2 = train_r2s
+        self.val_loss = val_losses
+        self.val_r2 = val_r2s
+        self.best_epoch = best_epoch
+        self.epochs_trained = epochs_trained
+        self.total_training_time = total_training_time
+
+    def __str__(self):
+        return f"Best val loss: {self.val_loss[self.best_epoch]:.4f}, at epoch {self.best_epoch + 1}"
+
+    def plot(self):
+        import matplotlib.pyplot as plt
+        plt.plot(self.train_loss, label='train loss')
+        plt.plot(self.val_loss, label='val loss')
+        plt.legend()
+        plt.show()
+
+        plt.plot(self.train_r2, label='train r2')
+        plt.plot(self.val_r2, label='val r2')
+        plt.legend()
+        plt.show()
