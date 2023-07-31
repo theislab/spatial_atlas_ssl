@@ -250,7 +250,7 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
         mask = torch.zeros(gene_expression.shape[0], dtype=torch.bool)
 
         # randomly select some percentage of cells to mask
-        num_cells_to_mask = int(gene_expression.shape[0] * 0.2)  # e.g., 10%
+        num_cells_to_mask = int(gene_expression.shape[0] * 0.1)  # e.g., 10%
         cells_to_mask = np.random.choice(gene_expression.shape[0], size=num_cells_to_mask, replace=False)
         mask[cells_to_mask] = True
 
