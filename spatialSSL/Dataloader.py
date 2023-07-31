@@ -281,6 +281,8 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
                 gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_by_niche(gene_expression, cell_type, edge_index)
 
             # convert to sparse tensors
+
+
             gene_expression_coo = gene_expression.tocoo()
             gene_expression_masked_coo = gene_expression_masked.tocoo()
 
@@ -336,7 +338,6 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
     def masking_by_cell_type(gene_expression, cell_type, cell_type_to_mask):
 
 
-        
         # Convert to LIL format for efficient modifications
         gene_expression = gene_expression.tolil()
         

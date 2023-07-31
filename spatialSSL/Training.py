@@ -8,6 +8,25 @@ from torcheval.metrics import MeanSquaredError,R2Score
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
+def train_epoch_minibatch(model, loader, optimizer, criterion, training=True):
+    model.train() if training else model.eval()
+    total_loss = 0
+
+    for batch_size, n_id, adjs in loader:
+        # adjs holds a list of (edge_index, e_id, size) tuples.
+        adjs = [adj.to(device) for adj in adjs]
+
+        optimizer.zero_grad()
+        out = model(loader.x[n_id].float(), adjs)
+        loss = criterion(out, loader.y[n_id[loader.train_mask]])
+        if training:
+            loss.backward()
+            optimizer.step()
+
+        total_loss += float(loss)
+
+    return total_loss
+
 def train_epoch(model, loader, optimizer, criterion,r2_metric, mse_metric, gene_expression=None, training=True):
 
     
@@ -50,7 +69,8 @@ def train_epoch(model, loader, optimizer, criterion,r2_metric, mse_metric, gene_
     return total_loss / len(loader.dataset), r2_metric.compute(),mse_metric.compute()
 
 def train(model, train_loader, val_loader, criterion, num_epochs=100, patience=5, optimizer = None,model_path=None,
-          gene_expression=None):
+          gene_expression=None, minibatch = False):
+
     r2_metric_train = R2Score()
     r2_metric_val = R2Score()
     mse_metric_train = MeanSquaredError()
@@ -63,9 +83,13 @@ def train(model, train_loader, val_loader, criterion, num_epochs=100, patience=5
 
     for epoch in range(num_epochs):
         start_time = time.time()
-        train_loss, train_r2,train_mse = train_epoch(model, train_loader, optimizer, criterion,r2_metric_train, mse_metric_train, gene_expression, training=True)
-        
-        val_loss, val_r2, val_mse = train_epoch(model, val_loader, optimizer,criterion ,r2_metric_val,mse_metric_val, gene_expression, training=False)
+
+        if minibatch:
+            train_loss = train_epoch_minibatch(model, train_loader, optimizer, criterion, training=True)
+            val_loss = train_epoch_minibatch(model, val_loader, optimizer, criterion, training=False)
+        else:
+            train_loss, train_r2,train_mse = train_epoch(model, train_loader, optimizer, criterion,r2_metric_train, mse_metric_train, gene_expression, training=True)
+            val_loss, val_r2, val_mse = train_epoch(model, val_loader, optimizer,criterion ,r2_metric_val,mse_metric_val, gene_expression, training=False)
         # scheduler.step() # Decrease learning rate by scheduler
 
         if val_loss < best_val_loss:
@@ -84,3 +108,6 @@ def train(model, train_loader, val_loader, criterion, num_epochs=100, patience=5
             f"Epoch {epoch + 1}/{num_epochs}, train loss: {train_loss:.4f}, train r2: {train_r2:.4f}, train mse: {train_mse:.4f},  val loss: {val_loss:.4f}, val r2: {val_r2:.4f}, val mse: {val_mse:.4f}, Time: {time.time() - start_time:.4f}s")
 
     print(f"Best val loss: {best_val_loss:.4f}, at epoch {best_epoch + 1}")
+
+
+
