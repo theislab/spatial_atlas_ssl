@@ -7,13 +7,9 @@ import pandas as pd
 import scanpy as sc
 import squidpy as sq
 import torch
-
-from torch_geometric.data import Data, Dataset
-from torch_geometric.loader import DataLoader
-from torch_geometric.utils import from_networkx, from_scipy_sparse_matrix, k_hop_subgraph
+from torch_geometric.data import Data
+from torch_geometric.utils import from_scipy_sparse_matrix, k_hop_subgraph
 from tqdm.auto import tqdm
-
-from spatialSSL.Dataset import EgoNetDataset
 
 
 class SpatialDatasetConstructor(ABC):
