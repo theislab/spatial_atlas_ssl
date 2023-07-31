@@ -6,7 +6,7 @@ import time
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-def train_epoch(model, loader, optimizer, criterion, training=True, gene_expression=None):
+def train_epoch(model, loader, optimizer, criterion, gene_expression=None, training=True):
     if training:
         model.train()
     else:
@@ -45,7 +45,7 @@ def train_epoch(model, loader, optimizer, criterion, training=True, gene_express
     return total_loss / len(loader.dataset), r2_score(torch.cat(targets_list).numpy(), torch.cat(outputs_list).numpy())
 
 
-def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100, patience=5, model_path=None,
+def train(model, train_loader, val_loader, criterion, num_epochs=100, patience=5, optimizer = None,model_path=None,
           gene_expression=None):
     best_val_loss = float('inf')
     best_epoch = 0
@@ -54,7 +54,7 @@ def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100,
     for epoch in range(num_epochs):
         start_time = time.time()
         train_loss, train_r2 = train_epoch(model, train_loader, optimizer, criterion, gene_expression, training=True)
-        val_loss, val_r2 = train_epoch(model, val_loader, criterion, gene_expression, training=False)
+        val_loss, val_r2 = train_epoch(model, val_loader, optimizer,criterion, gene_expression, training=False)
         # scheduler.step() # Decrease learning rate by scheduler
 
         if val_loss < best_val_loss:
@@ -70,6 +70,6 @@ def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100,
                 break
 
         print(
-            f"Epoch {epoch + 1}/{num_epochs}, train loss: {train_loss:.4f}, train r2: {train_r2:.4f},  val loss: {val_loss:.4f}, val r2: {val_r2:.4f}, Time: {time.time() - start_time}s")
+            f"Epoch {epoch + 1}/{num_epochs}, train loss: {train_loss:.4f}, train r2: {train_r2:.4f},  val loss: {val_loss:.4f}, val r2: {val_r2:.4f}, Time: {time.time() - start_time:.4f}s")
 
     print(f"Best val loss: {best_val_loss:.4f}, at epoch {best_epoch + 1}")
