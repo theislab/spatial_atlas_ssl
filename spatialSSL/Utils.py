@@ -1,9 +1,10 @@
 from torch.utils.data import random_split, Dataset
 from torch_geometric.loader import DataLoader
 
+
 def split_dataset(dataset, split_percent=(0.8, 0.1, 0.1), batch_size=64):
     # Split the dataset into train, validation, and test sets
-    #dataset.shuffle()
+    # dataset.shuffle()
 
     dataset = graphDataset(dataset)
 

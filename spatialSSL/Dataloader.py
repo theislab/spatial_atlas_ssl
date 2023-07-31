@@ -217,12 +217,18 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
             cell_type = sub_adata.obs[self.label_col].values
 
             # assuming gene expression is stored in sub_adata.X
-            gene_expression = sub_adata.X.toarray()
+            gene_expression = sub_adata.X
 
             # select masking technique
             if self.mask_method == 'random':
                 gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_random(gene_expression, cell_type)
             elif self.mask_method == 'cell_type':
+
+                # check if cell type to mask is in the dataset
+                if self.celltype_to_mask not in np.unique(cell_type):
+                    print(f"Cell type {self.celltype_to_mask} not found in image {image}. Skipping this image.")
+                    continue
+
                 gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_by_cell_type(gene_expression, cell_type, cell_type_to_mask=self.celltype_to_mask)
             elif self.mask_method == 'niche':
                 gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_by_niche(gene_expression, cell_type, edge_index)
@@ -265,10 +271,6 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
         # Create a mask of size equal to the number of a cell type
         # Mask is ture for cells that are masked
         mask = torch.zeros(gene_expression.shape[0], dtype=torch.bool)
-
-        #check if cell type to mask is in the dataset
-        if cell_type_to_mask not in np.unique(cell_type):
-            raise ValueError(f"Cell type {cell_type_to_mask} not in the dataset")
 
         # get the cells of the cell type to mask
         cells_to_mask = np.where(cell_type == cell_type_to_mask)[0]
