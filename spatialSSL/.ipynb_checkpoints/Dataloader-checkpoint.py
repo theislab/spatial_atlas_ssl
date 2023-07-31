@@ -6,19 +6,18 @@ import networkx as nx
 import numpy as np
 import scanpy as sc
 import squidpy as sq
-import torch
 
-from torch_geometric.data import Data, Dataset
+from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 from torch_geometric.utils import from_networkx, from_scipy_sparse_matrix, k_hop_subgraph
 from tqdm.auto import tqdm
+#from spatialSSL.Dataset import EgoNetDataset, FullImageDataset
+import torch
 
-from spatialSSL.Dataset import EgoNetDataset
 
-
-class SpatialDatasetConstructor(ABC):
+class SpatialDataloader(ABC):
     def __init__(self, file_path: str, image_col: str, label_col: str, include_label: bool, radius: float,
-                 node_level: int = 1, batch_size: int = 64):
+                 node_level: int = 1, batch_size: int = 64, split_percent: tuple = (0.8, 0.1, 0.1), mask_method: str = 'random' , *args, **kwargs):
         self.file_path = file_path
         self.image_col = image_col
         self.label_col = label_col
@@ -26,13 +25,11 @@ class SpatialDatasetConstructor(ABC):
         self.include_label = include_label
         self.radius = radius
         self.batch_size = batch_size
-
         self.split_percent = split_percent
         self.mask_method = mask_method
         self.dataset = None
         self.adata = None
-        if self.mask_method == 'cell_type':
-            self.celltype_to_mask = kwargs['celltype_to_mask']
+        self.celltype_to_mask = None
 
     def load_data(self):
         # Load data from .h5ad file and return a scanpy AnnData object
@@ -43,8 +40,7 @@ class SpatialDatasetConstructor(ABC):
         pass
 
 
-
-class EgoNetDatasetConstructor(SpatialDatasetConstructor):
+class EgoNetDataloader(SpatialDataloader):
     def __init__(self, *args, **kwargs):
         """
         Initializes the Ego_net_dataloader.
@@ -64,7 +60,7 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
         distance of the center node.
         """
         # TODO: Add default parameters for this methods (e.g. batch_size=32)
-        super(EgoNetDatasetConstructor, self).__init__(*args, **kwargs)
+        super(EgoNetDataloader, self).__init__(*args, **kwargs)
 
     def construct_graph(self):
         # Constructing graph from coordinates using scanpy's spatial_neighbors function
@@ -72,62 +68,47 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
 
         graphs = []
 
-
-
-        for image in tqdm(images, desc=f"Processing {len(images)} images"):
-
-            # subset adata to only include cells from the current image
+        for image in tqdm(images, desc=f"Processing {len(images)} Images"):
             sub_adata = self.adata[self.adata.obs[self.image_col] == image].copy()
-
-            # calculate graph using neighbors function
             sq.gr.spatial_neighbors(adata=sub_adata, radius=self.radius, key_added="adjacency_matrix",
                                     coord_type="generic")
+            edge_index, _ = from_scipy_sparse_matrix(sub_adata.obsp['adjacency_matrix_connectivities'])
 
-            edge_index_full, _ = from_scipy_sparse_matrix(sub_adata.obsp['adjacency_matrix_connectivities'])
+            graphs.append(Data(x=sub_adata.X.toarray(), edge_index=edge_index))
 
-            # convert to pytorch tensor
-            x = torch.tensor(sub_adata.X.toarray(), dtype=torch.double)
+            """
+            # Create subgraphs for each node
+            g = nx.Graph()
 
-            for idx in tqdm(range(len(sub_adata)), desc=f"Processing {len(sub_adata)} nodes", leave=False):
+            # Add nodes with features to the graph
+            for i, features in enumerate(self.adata.X.toarray()):
+                g.add_node(i, features=features)
 
-                # create subgraph for each node
-                subset, edge_index, mapping, edge_mask = k_hop_subgraph(node_idx=[idx], edge_index=edge_index_full,
-                                                                        num_hops=self.node_level, relabel_nodes=True)
+            # Add edges to the graph
+            # print('Adding edges...')
+            g.add_edges_from(edge_index.t().tolist())
 
-                subgraph_data = x[subset].clone()
+            # Create subgraphs for each node of g
+            subgraphs = [nx.ego_graph(g, node, radius=self.node_level) for node in
+                         tqdm(g.nodes(), desc="Creating Subgraphs", leave=False)]
 
-                # calculate new index of center node
-                new_index = torch.nonzero(subset == idx).squeeze()
+            # Convert networkx graphs to PyG format
+            sub_g_dataset = [from_networkx(graph, group_node_attrs=['features']) for graph in
+                             tqdm(subgraphs, desc="Converting to PyG format", leave=False)]
 
-                # set center node feature to 0
-                subgraph_data[new_index] = 0
-
-                # create mask for the center node, to calculate the loss only on the center node
-                mask = torch.ones(subgraph_data.shape[0], dtype=torch.bool)
-                mask[new_index] = False
-
-                graphs.append(Data(x=subgraph_data, edge_index=edge_index, image=image, mask = mask))
-                """if self.include_label:
-                    y = torch.tensor(sub_adata.obs[self.label_col][mapping], dtype=torch.long)
-                    graphs.append(Data(x=x[subset], edge_index=edge_index, y=y, image=image))
-                else:"""
-
-        return graphs
-            #graphs.append(Data(x=x, edge_index=edge_index, image=image))
-
-        # Create dataset from graphs
-        #self.dataset = EgoNetDataset(graphs=graphs, num_hops=self.node_level)
-        #loader = DataLoader(self.dataset, batch_size=self.batch_size, shuffle=True)
-        #print("total number of cell/nodes: ", len(self.dataset))
-        #return loader
+            # Extend the ensemble with the new subgraphs
+            sub_g_ensemble.extend(sub_g_dataset)
+            """
+        self.dataset = EgoNetDataset(graphs)
+        loader = DataLoader(self.dataset, batch_size=self.batch_size, shuffle=True)
+        return loader
 
 
-class FullImageDatasetConstructor(SpatialDatasetConstructor):
-    def __init__(self, *args, **kwargs):  # TODO: Add default parameters for this methods (e.g. batch_size=4)...
-        super(FullImageDatasetConstructor, self).__init__(*args, **kwargs)
+class FullImageConstracter(SpatialDataloader):
+    def __init__(self, *args, **kwargs):
+        super(FullImageConstracter, self).__init__(*args, **kwargs)
 
     def construct_graph(self):
-        # Constructing graph from coordinates using scanpy's spatial_neighbors function
         images = np.unique(self.adata.obs[self.image_col])
 
         graphs = []
@@ -150,7 +131,9 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
             elif self.mask_method == 'niche':
                 gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_by_niche(gene_expression, cell_type, edge_index)
 
-            # convert to tensors
+            # create a mask of size equal to the number of cells
+            gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_random(gene_expression, cell_type)
+
             gene_expression = torch.tensor(gene_expression, dtype=torch.double)
             gene_expression_masked = torch.tensor(gene_expression_masked, dtype=torch.double)
             #print(cell_type.shape)
@@ -163,22 +146,22 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
     def masking_random(gene_expression, cell_type):
         # create a mask of size equal to the number of cells
 
-        # Mask is ture for cells that are masked
-        mask = torch.zeros(gene_expression.shape[0], dtype=torch.bool)
+        # Mask is ture for cells that are not masked
+        mask = torch.ones(gene_expression.shape[0], dtype=torch.bool)
 
         # randomly select some percentage of cells to mask
         num_cells_to_mask = int(gene_expression.shape[0] * 0.2)  # e.g., 10%
         cells_to_mask = np.random.choice(gene_expression.shape[0], size=num_cells_to_mask, replace=False)
-        mask[cells_to_mask] = True
+        mask[cells_to_mask] = False
 
         # save the masked gene expression
-        gene_expression_masked = gene_expression[mask]
+        gene_expression_masked = gene_expression[~mask]
 
         # set the gene expression of the masked cells to zero
         gene_expression[cells_to_mask] = 0
 
         # keep track of the cell types of the masked cells
-        cell_type_masked = cell_type[cells_to_mask]
+        cell_type_masked = cell_type[~cells_to_mask]
 
         return gene_expression, gene_expression_masked, mask, cell_type_masked
 
@@ -186,29 +169,19 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
     def masking_by_cell_type(gene_expression, cell_type, cell_type_to_mask):
 
         # Create a mask of size equal to the number of a cell type
-        # Mask is ture for cells that are masked
-        mask = torch.zeros(gene_expression.shape[0], dtype=torch.bool)
-
-        #check if cell type to mask is in the dataset
-        if cell_type_to_mask not in np.unique(cell_type):
-            raise ValueError(f"Cell type {cell_type_to_mask} not in the dataset")
-
-        # get the cells of the cell type to mask
+        # Mask is ture for cells that are not masked
+        mask = torch.ones(gene_expression.shape[0], dtype=torch.bool)
         cells_to_mask = np.where(cell_type == cell_type_to_mask)[0]
+        mask[cells_to_mask] = False
 
-        mask[cells_to_mask] = True
-        # Count the number of True values in the mask
-        #um_true = sum(mask)
-
-        #print("Number of True values in the mask:", num_true)
         # save the masked gene expression
-        gene_expression_masked = gene_expression[mask]
+        gene_expression_masked = gene_expression[~mask]
 
         # set the gene expression of the masked cells to zero
         gene_expression[cells_to_mask] = 0
 
         # keep track of the cell types of the masked cells
-        cell_type_masked = cell_type[cells_to_mask]
+        cell_type_masked = cell_type[~cells_to_mask]
 
         return gene_expression, gene_expression_masked, mask, cell_type_masked
 
@@ -230,17 +203,17 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
 
         # Create a mask of size equal to the number of a cell type
         # Mask is ture for cells that are not masked
-        mask = torch.zeros(gene_expression.shape[0], dtype=torch.bool)
-        mask[cells_to_mask] = True
+        mask = torch.ones(gene_expression.shape[0], dtype=torch.bool)
+        mask[cells_to_mask] = False
 
         # save the masked gene expression
-        gene_expression_masked = gene_expression[mask]
+        gene_expression_masked = gene_expression[~mask]
 
         # set the gene expression of the masked cells to zero
         gene_expression[cells_to_mask] = 0
 
         # keep track of the cell types of the masked cells
-        cell_type_masked = cell_type[cells_to_mask]
+        cell_type_masked = cell_type[~mask]
 
         return gene_expression, gene_expression_masked, mask, cell_type_masked
 

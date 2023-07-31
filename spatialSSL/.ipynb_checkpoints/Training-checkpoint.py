@@ -15,13 +15,13 @@ def train_one_epoch(model, loader, optimizer, criterion):
         data = data.to(device)
         optimizer.zero_grad()
         outputs = model(data.x.float(), data.edge_index.long())
-        loss = criterion(outputs[data.mask], data.y.float())
+        loss = criterion(outputs[~data.mask], data.y.float())
         loss.backward()
         optimizer.step()
 
         total_loss += loss.item() * data.num_graphs
         targets_list.append(data.y.cpu().detach())
-        outputs_list.append(outputs[data.mask].cpu().detach())
+        outputs_list.append(outputs[~data.mask].cpu().detach())
 
     return total_loss / len(loader.dataset), r2_score(torch.cat(targets_list).numpy(), torch.cat(outputs_list).numpy())
 
@@ -36,11 +36,11 @@ def validate_one_epoch(model, loader, criterion):
         for data in loader:
             data = data.to(device)
             outputs = model(data.x.float(), data.edge_index.long())
-            loss = criterion(outputs[data.mask], data.y.float())
+            loss = criterion(outputs[~data.mask], data.y.float())
 
             total_loss += loss.item() * data.num_graphs
             targets_list.append(data.y.cpu())
-            outputs_list.append(outputs[data.mask].cpu())
+            outputs_list.append(outputs[~data.mask].cpu())
 
     return total_loss / len(loader.dataset), r2_score(torch.cat(targets_list).numpy(), torch.cat(outputs_list).numpy())
 

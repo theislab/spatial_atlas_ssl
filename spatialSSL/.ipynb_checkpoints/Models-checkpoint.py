@@ -11,8 +11,8 @@ class GCN(nn.Module):
         x = self.conv1(x, edge_index).relu()
         x = self.lin1(x)
         return x
-
-
+    
+    
 class GAT(nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels):
         super().__init__()

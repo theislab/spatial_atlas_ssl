@@ -10,9 +10,8 @@ import scanpy as sc
 import os
 
 class EgoNetDataset(Dataset):
-    def __init__(self, graphs, num_hops=1):
+    def __init__(self, graphs):
         super(EgoNetDataset, self).__init__()
-        self.num_hops = num_hops
         self.graphs = graphs
 
     def len(self):
@@ -20,52 +19,27 @@ class EgoNetDataset(Dataset):
         return sum([g.x.shape[0] for g in self.graphs])
 
     def get(self, idx):
-        # find graph and node idx
+        #find graph and node idx
         for graph in self.graphs:
             if idx < graph.x.shape[0]:
                 break
             idx -= graph.x.shape[0]
 
-        try:
-            # calculate the subgraph
-            subset, edge_index, mapping, edge_mask = k_hop_subgraph(node_idx=[idx], edge_index=graph.edge_index,
-                                                                    num_hops=self.num_hops, relabel_nodes=True)
-        except:
-            print("Error in get function")
-            print("idx: ", idx)
-            print("graph.x.shape: ", graph.x.shape)
-            print("graph", graph.image)
-
-        # get subgraph
-        subgraph_data = graph.x[subset].clone()
-
-        # calculate new index of center node
-        new_index = torch.nonzero(subset == idx).squeeze()
-
-        # set center node feature to 0
-        subgraph_data[new_index] = 0
-
-        # create mask for the center node, to calculate the loss only on the center node
-        mask = torch.ones(subgraph_data.shape[0], dtype=torch.bool)
-        mask[new_index] = False
-
-        return Data(x=subgraph_data, edge_index=edge_index, y=graph.x[idx].view(1, 550), mask=mask)
-
         #get subgraph
         subset, edge_index, mapping, edge_mask =  k_hop_subgraph(node_idx=[idx], edge_index=graph.edge_index, num_hops=1, relabel_nodes=True)
         return Data(x=graph.x[subset], edge_index=edge_index)
-
-
+    
+    
 
 
 class InMemoryGraphDataset(InMemoryDataset):
-
+    
     def __init__(self, root,data_names, *args, **kwargs):
         self.data_names = data_names
         self.data_loader = FullImageConstracter(*args, **kwargs)
         self.root = root
         super(InMemoryDataset, self).__init__(root, transform=None, pre_transform=None)
-
+        
 
     @property
     def raw_file_names(self):
