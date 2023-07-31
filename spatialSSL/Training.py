@@ -25,20 +25,21 @@ def train_epoch(model, loader, optimizer, criterion,r2_metric, mse_metric, gene_
                 optimizer.zero_grad()
 
             if gene_expression is None:
-                input =  torch.tensor(data.x[0].toarray(), dtype=torch.float).to(device)
-                input_masked = torch.tensor(data.y[0].toarray(), dtype=torch.float).to(device)
+                #input =  torch.tensor(data.x, dtype=torch.float).to(device)
+                #input_masked = torch.tensor(data.y, dtype=torch.float).to(device)
                 
-                outputs = model(input.float(), data.edge_index.long().to(device))
-                loss = criterion(outputs[data.mask], input_masked.float())
-                r2_metric.update(input.cpu().detach(), outputs.cpu().detach())
-                mse_metric.update(input.cpu().detach(), outputs.cpu().detach())
+                outputs = model(data.x.float().to(device), data.edge_index.long().to(device))
+                loss = criterion(outputs[data.mask], data.y.float().to_dense().to(device))
+
+                # evaluate metrics
+                r2_metric.update(outputs[data.mask].cpu(),data.y.float().to_dense().cpu())
+                mse_metric.update(outputs[data.mask].cpu(),data.y.float().to_dense().cpu())
             else:
                 input = torch.tensor(gene_expression[data.x].toarray(), dtype=torch.double).to(device)
                 input[data.mask] = 0
                 target = torch.tensor(gene_expression[data.y].toarray(), dtype=torch.double).to(device)
                 outputs = model(input.float(), data.edge_index.to(device).long())
                 loss = criterion(outputs[data.mask], target.float())
-                targets_list.append(target.cpu())
 
             if training:
                 loss.backward()
@@ -50,7 +51,6 @@ def train_epoch(model, loader, optimizer, criterion,r2_metric, mse_metric, gene_
 
 def train(model, train_loader, val_loader, criterion, num_epochs=100, patience=5, optimizer = None,model_path=None,
           gene_expression=None):
-    
     r2_metric_train = R2Score()
     r2_metric_val = R2Score()
     mse_metric_train = MeanSquaredError()

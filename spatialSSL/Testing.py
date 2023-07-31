@@ -13,8 +13,8 @@ def test(model, test_loader, criterion, device):
 
     for data in tqdm(test_loader):
         with torch.no_grad():
-            expression = torch.tensor(data.x[0].toarray(), dtype=torch.double).to(device)
-            expression_masked = torch.tensor(data.y[0].toarray(), dtype=torch.double).to(device)
+            expression = torch.tensor(data.x.toarray(), dtype=torch.double).to(device)
+            expression_masked = torch.tensor(data.y.toarray(), dtype=torch.double).to(device)
             
             outputs = model(expression.float(), data.edge_index.to(device).long())
             loss = criterion(outputs[data.mask], expression_masked.float())

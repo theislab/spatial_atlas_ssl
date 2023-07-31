@@ -59,6 +59,53 @@ class SpatialDatasetConstructor(ABC):
         pass
 
 
+class SpatialDatasetConstructor(ABC):
+    def __init__(self, file_path: str, image_col: str, label_col: str, include_label: bool, radius: float,
+                 node_level: int = 1,mask_method = 'random', **kwargs):
+        self.file_path = file_path
+        self.image_col = image_col
+        self.label_col = label_col
+        self.node_level = node_level
+        self.include_label = include_label
+        self.radius = radius
+
+        self.mask_method = mask_method
+        self.dataset = None
+        self.adata = None
+        if self.mask_method == 'cell_type':
+            self.celltype_to_mask = kwargs['celltype_to_mask']
+
+    def load_data(self):
+        # Load data from .h5ad file and return a scanpy AnnData object
+        self.adata = sc.read(self.file_path)
+
+        # Extract the column values to a pandas DataFrame
+        obs_df = self.adata.obs.copy()
+
+        # Sort the DataFrame by the specified column
+        sorted_obs_df = obs_df.sort_values(by=self.image_col)
+
+        # Reindex the AnnData object using the sorted index of the DataFrame
+        self.adata = self.adata[sorted_obs_df.index]
+        #self.adata.X = torch.tensor(self.adata.X., dtype=torch.double)
+        # Create a dictionary of AnnData objects, one for each image
+        # self.adatas = {image_id: adata[adata.obs[self.image_col] == image_id] for image_id in
+        #               np.unique(adata.obs[self.image_col])}
+
+        # del adata
+        """import os
+        import psutil
+        pid = os.getpid()
+        python_process = psutil.Process(pid)
+        memoryUse = python_process.memory_info()[0] / 2. ** 30  # memory use in GB...I think
+        print(f'memory use: {memoryUse:.2f} GB'.format(**locals()))
+        """
+
+    @abstractmethod
+    def construct_graph(self):
+        pass
+
+
 class EgoNetDatasetConstructor(SpatialDatasetConstructor):
     def __init__(self, *args, **kwargs):
         """
@@ -233,10 +280,25 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
             elif self.mask_method == 'niche':
                 gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_by_niche(gene_expression, cell_type, edge_index)
 
+            # convert to sparse tensors
+            gene_expression_coo = gene_expression.tocoo()
+            gene_expression_masked_coo = gene_expression_masked.tocoo()
+
+            # convert to pytorch tensor
             # convert to tensors
-            #gene_expression = torch.tensor(gene_expression, dtype=torch.double)
-            #gene_expression_masked = torch.tensor(gene_expression_masked, dtype=torch.double)
-            #print(cell_type.shape)
+            gene_expression = torch.sparse_coo_tensor(
+                indices=np.vstack((gene_expression_coo.row, gene_expression_coo.col)),
+                values=gene_expression_coo.data,
+                size=gene_expression_coo.shape,
+                dtype=torch.double)
+
+            gene_expression_masked = torch.sparse_coo_tensor(
+                indices=np.vstack((gene_expression_masked_coo.row, gene_expression_masked_coo.col)),
+                values=gene_expression_masked_coo.data,
+                size=gene_expression_masked_coo.shape,
+                dtype=torch.double)
+
+            # create graph
             graph = Data(x=gene_expression, edge_index=edge_index, y=gene_expression_masked, mask=mask,
                          cell_type=cell_type, cell_type_masked=cell_type_masked, image=image, num_nodes = gene_expression.shape[0])
             graphs.append(graph)
