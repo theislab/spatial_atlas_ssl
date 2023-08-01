@@ -14,7 +14,7 @@ from tqdm.auto import tqdm
 
 class SpatialDatasetConstructor(ABC):
     def __init__(self, file_path: str, image_col: str, label_col: str, include_label: bool, radius: float,
-                 node_level: int = 1,mask_method = 'random', **kwargs):
+                 node_level: int = 1, mask_method='random', **kwargs):
         self.file_path = file_path
         self.image_col = image_col
         self.label_col = label_col
@@ -40,7 +40,7 @@ class SpatialDatasetConstructor(ABC):
 
         # Reindex the AnnData object using the sorted index of the DataFrame
         self.adata = self.adata[sorted_obs_df.index]
-        #self.adata.X = torch.tensor(self.adata.X., dtype=torch.double)
+        # self.adata.X = torch.tensor(self.adata.X., dtype=torch.double)
         # Create a dictionary of AnnData objects, one for each image
         # self.adatas = {image_id: adata[adata.obs[self.image_col] == image_id] for image_id in
         #               np.unique(adata.obs[self.image_col])}
@@ -110,19 +110,15 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
                 offset = graphs[self.adata.obs[self.image_col][idx]][1]
 
                 subset, edge_index, mapping, edge_mask = k_hop_subgraph(node_idx=[idx - offset], edge_index=
-                graphs[self.adata.obs[self.image_col][idx]][0],
-                                                                        num_hops=self.node_level, relabel_nodes=True)
-                # convert to pytorch tensor
-                # x = torch.tensor(subset.X.toarray(), dtype=torch.double)
-                # y = torch.tensor(subset.obs[self.label_col].values, dtype=torch.long)
-                # edge_index = torch.tensor(edge_index, dtype=torch.long)
-                # edge_mask = torch.tensor(edge_mask, dtype=torch.bool)
-                # mapping = torch.tensor(mapping, dtype=torch.long)
-                # create data object
+                graphs[self.adata.obs[self.image_col][idx]][0], num_hops=self.node_level, relabel_nodes=True)
+
+                if len(subset) == 1:
+                    continue
+
                 new_index = torch.nonzero(subset == idx - offset).squeeze()
                 mask = torch.zeros(subset.shape[0], dtype=torch.bool)
                 mask[new_index] = True
-                data = Data(x=subset + offset, y=idx, edge_index=edge_index, mask=mask)
+                data = Data(x=subset + offset, y=idx, edge_index=edge_index, mask=mask, celltype = self.adata.obs[self.label_col][idx])
                 subgraphs.append(data)
             except Exception as e:
                 print(f"Error processing node {idx}")
@@ -221,16 +217,20 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
 
             # select masking technique
             if self.mask_method == 'random':
-                gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_random(gene_expression, cell_type)
+                gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_random(gene_expression,
+                                                                                                      cell_type)
             elif self.mask_method == 'cell_type':
-                gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_by_cell_type(gene_expression, cell_type, cell_type_to_mask=self.celltype_to_mask)
+                gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_by_cell_type(
+                    gene_expression, cell_type, cell_type_to_mask=self.celltype_to_mask)
             elif self.mask_method == 'niche':
-                gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_by_niche(gene_expression, cell_type, edge_index)
+                gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_by_niche(gene_expression,
+                                                                                                        cell_type,
+                                                                                                        edge_index)
 
             # convert to tensors
             gene_expression = torch.tensor(gene_expression, dtype=torch.double)
             gene_expression_masked = torch.tensor(gene_expression_masked, dtype=torch.double)
-            #print(cell_type.shape)
+            # print(cell_type.shape)
             graph = Data(x=gene_expression, edge_index=edge_index, y=gene_expression_masked, mask=mask,
                          cell_type=cell_type, cell_type_masked=cell_type_masked, image=image)
             graphs.append(graph)
@@ -266,7 +266,7 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
         # Mask is ture for cells that are masked
         mask = torch.zeros(gene_expression.shape[0], dtype=torch.bool)
 
-        #check if cell type to mask is in the dataset
+        # check if cell type to mask is in the dataset
         if cell_type_to_mask not in np.unique(cell_type):
             raise ValueError(f"Cell type {cell_type_to_mask} not in the dataset")
 
@@ -275,9 +275,9 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
 
         mask[cells_to_mask] = True
         # Count the number of True values in the mask
-        #um_true = sum(mask)
+        # um_true = sum(mask)
 
-        #print("Number of True values in the mask:", num_true)
+        # print("Number of True values in the mask:", num_true)
         # save the masked gene expression
         gene_expression_masked = gene_expression[mask]
 
@@ -320,5 +320,3 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
         cell_type_masked = cell_type[cells_to_mask]
 
         return gene_expression, gene_expression_masked, mask, cell_type_masked
-
-
