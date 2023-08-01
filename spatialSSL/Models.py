@@ -10,7 +10,7 @@ class GCN(nn.Module):
 
     def forward(self, x: Tensor, edge_index: Tensor) -> Tensor:
         x = self.conv1(x, edge_index).relu()
-        x = self.lin1(x)
+        x = self.lin1(x).relu()
         return x
 
 
@@ -24,5 +24,5 @@ class GCN3layer(nn.Module):
     def forward(self, x: Tensor, edge_index: Tensor) -> Tensor:
         x = self.conv1(x, edge_index).relu()
         x = self.conv2(x, edge_index).relu()
-        x = self.lin1(x)
+        x = self.lin1(x).relu()
         return x
