@@ -18,7 +18,7 @@ def train_epoch(model, loader, optimizer, criterion, gene_expression=None, train
 
     total_loss = 0
 
-    r2 = R2Score()
+    r2 = R2Score().to(device)
 
     with torch.set_grad_enabled(training):
         for data in loader:
