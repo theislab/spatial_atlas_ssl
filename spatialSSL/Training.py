@@ -1,7 +1,9 @@
 import torch
 from torch import nn, optim
-from sklearn.metrics import r2_score
+from sklearn.metrics import r2_score as sk_r2_score
 import time
+from torcheval.metrics import R2Score
+from torcheval.metrics.functional import r2_score
 
 from tqdm.auto import tqdm
 
@@ -15,11 +17,14 @@ def train_epoch(model, loader, optimizer, criterion, gene_expression=None, train
         model.eval()
 
     total_loss = 0
-    targets_list = []
-    outputs_list = []
+
+    r2 = R2Score()
+
 
     with torch.set_grad_enabled(training):
         for data in loader:
+
+
 
             if training:
                 optimizer.zero_grad()
@@ -28,23 +33,22 @@ def train_epoch(model, loader, optimizer, criterion, gene_expression=None, train
                 data = data.to(device)
                 outputs = model(data.x.float(), data.edge_index.long())
                 loss = criterion(outputs[data.mask], data.y.float())
-                targets_list.append(data.y.cpu().detach())
+                target = data.y
             else:
                 input = torch.tensor(gene_expression[data.x].toarray(), dtype=torch.double).to(device)
                 input[data.mask] = 0
                 target = torch.tensor(gene_expression[data.y].toarray(), dtype=torch.double).to(device)
                 outputs = model(input.float(), data.edge_index.to(device).long())
                 loss = criterion(outputs[data.mask], target.float())
-                targets_list.append(target.cpu())
 
             if training:
                 loss.backward()
                 optimizer.step()
 
             total_loss += loss.item() * data.num_graphs
-            outputs_list.append(outputs[data.mask].cpu().detach())
+            r2.update(outputs[data.mask].flatten(), target.flatten())
 
-    return total_loss / len(loader.dataset), r2_score(torch.cat(targets_list).numpy(), torch.cat(outputs_list).numpy())
+    return total_loss / len(loader.dataset), r2.compute().cpu().numpy()
 
 
 def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100, patience=5, model_path=None,
@@ -65,6 +69,8 @@ def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100,
 
     # records time
     start_time = time.time()
+
+
 
     # training loop
     for epoch in tqdm(range(num_epochs), desc='Training model'):
@@ -109,7 +115,7 @@ class TrainResults():
         self.total_training_time = total_training_time
 
     def __str__(self):
-        return f"Best val loss: {self.val_losses[self.best_epoch]:.4f}, at epoch {self.best_epoch + 1}"
+        return f"Best val loss: {self.val_losses[self.best_epoch]:.4f}, best r2 val: {self.val_r2s[self.best_epoch]:.4f}, at epoch {self.best_epoch + 1}"
 
     def plot(self):
         import matplotlib.pyplot as plt
