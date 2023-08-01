@@ -119,7 +119,7 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
                 new_index = torch.nonzero(subset == idx - offset).squeeze()
                 mask = torch.zeros(subset.shape[0], dtype=torch.bool)
                 mask[new_index] = True
-                data = Data(x=subset + offset, y=idx, edge_index=edge_index, mask=mask, celltype=self.adata.obs[self.label_col][idx])
+                data = Data(x=subset + offset, y=idx, edge_index=edge_index, mask=mask)#, celltype=self.adata.obs[self.label_col][idx])
                 subgraphs.append(data)
             except Exception as e:
                 print(f"Error processing node {idx}")
