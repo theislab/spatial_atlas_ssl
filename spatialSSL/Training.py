@@ -35,6 +35,7 @@ def train_epoch(model, loader, optimizer, criterion,r2_metric, mse_metric, gene_
 
                 r2_metric.update(outputs[data.mask].cpu(),target.cpu())
                 mse_metric.update(outputs[data.mask].cpu(),target.cpu())
+
             else:
                 input = torch.tensor(gene_expression[data.x].toarray(), dtype=torch.double).to(device)
                 input[data.mask] = 0
