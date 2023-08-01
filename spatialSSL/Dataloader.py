@@ -14,7 +14,7 @@ from tqdm.auto import tqdm
 
 class SpatialDatasetConstructor(ABC):
     def __init__(self, file_path: str, image_col: str, label_col: str, include_label: bool, radius: float,
-                 node_level: int = 1,mask_method = 'random', **kwargs):
+                 node_level: int = 1, mask_method='random',random_to_mask = 0.1, **kwargs):
         self.file_path = file_path
         self.image_col = image_col
         self.label_col = label_col
@@ -25,8 +25,14 @@ class SpatialDatasetConstructor(ABC):
         self.mask_method = mask_method
         self.dataset = None
         self.adata = None
+        self.random_to_mask = random_to_mask
+        self.cell_type_to_mask = None
+        self.niche_to_mask = 1
+
         if self.mask_method == 'cell_type':
-            self.celltype_to_mask = kwargs['celltype_to_mask']
+            self.cell_type_to_mask = kwargs['cell_type_to_mask']
+        if self.mask_method == 'niche':
+            self.niche_to_mask = kwargs['niche_to_mask']
 
     def load_data(self):
         # Load data from .h5ad file and return a scanpy AnnData object
@@ -40,54 +46,7 @@ class SpatialDatasetConstructor(ABC):
 
         # Reindex the AnnData object using the sorted index of the DataFrame
         self.adata = self.adata[sorted_obs_df.index]
-        #self.adata.X = torch.tensor(self.adata.X., dtype=torch.double)
-        # Create a dictionary of AnnData objects, one for each image
-        # self.adatas = {image_id: adata[adata.obs[self.image_col] == image_id] for image_id in
-        #               np.unique(adata.obs[self.image_col])}
-
-        # del adata
-        """import os
-        import psutil
-        pid = os.getpid()
-        python_process = psutil.Process(pid)
-        memoryUse = python_process.memory_info()[0] / 2. ** 30  # memory use in GB...I think
-        print(f'memory use: {memoryUse:.2f} GB'.format(**locals()))
-        """
-
-    @abstractmethod
-    def construct_graph(self):
-        pass
-
-
-class SpatialDatasetConstructor(ABC):
-    def __init__(self, file_path: str, image_col: str, label_col: str, include_label: bool, radius: float,
-                 node_level: int = 1,mask_method = 'random', **kwargs):
-        self.file_path = file_path
-        self.image_col = image_col
-        self.label_col = label_col
-        self.node_level = node_level
-        self.include_label = include_label
-        self.radius = radius
-
-        self.mask_method = mask_method
-        self.dataset = None
-        self.adata = None
-        if self.mask_method == 'cell_type':
-            self.celltype_to_mask = kwargs['celltype_to_mask']
-
-    def load_data(self):
-        # Load data from .h5ad file and return a scanpy AnnData object
-        self.adata = sc.read(self.file_path)
-
-        # Extract the column values to a pandas DataFrame
-        obs_df = self.adata.obs.copy()
-
-        # Sort the DataFrame by the specified column
-        sorted_obs_df = obs_df.sort_values(by=self.image_col)
-
-        # Reindex the AnnData object using the sorted index of the DataFrame
-        self.adata = self.adata[sorted_obs_df.index]
-        #self.adata.X = torch.tensor(self.adata.X., dtype=torch.double)
+        # self.adata.X = torch.tensor(self.adata.X., dtype=torch.double)
         # Create a dictionary of AnnData objects, one for each image
         # self.adatas = {image_id: adata[adata.obs[self.image_col] == image_id] for image_id in
         #               np.unique(adata.obs[self.image_col])}
@@ -252,6 +211,10 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
 
     def construct_graph(self):
         # Constructing graph from coordinates using scanpy's spatial_neighbors function
+        gene_expression_masked = None
+        mask = None
+        cell_type_masked = None
+
         images = np.unique(self.adata.obs[self.image_col])
 
         graphs = []
@@ -264,24 +227,31 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
             cell_type = sub_adata.obs[self.label_col].values
 
             # assuming gene expression is stored in sub_adata.X
-            gene_expression = sub_adata.X
+            gene_expression = sub_adata.X.tolil()
 
             # select masking technique
             if self.mask_method == 'random':
-                gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_random(gene_expression, cell_type)
+                gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_random(gene_expression,
+                                                                                                      cell_type,
+                                                                                                      self.random_to_mask
+                                                                                                      )
             elif self.mask_method == 'cell_type':
 
                 # check if cell type to mask is in the dataset
-                if self.celltype_to_mask not in np.unique(cell_type):
-                    print(f"Cell type {self.celltype_to_mask} not found in image {image}. Skipping this image.")
+                if self.cell_type_to_mask not in np.unique(cell_type):
+                    print(f"Cell type {self.cell_type_to_mask} not found in image {image}. Skipping this image.")
                     continue
 
-                gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_by_cell_type(gene_expression, cell_type, cell_type_to_mask=self.celltype_to_mask)
+                gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_by_cell_type(
+                    gene_expression, cell_type, cell_type_to_mask=self.cell_type_to_mask)
             elif self.mask_method == 'niche':
-                gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_by_niche(gene_expression, cell_type, edge_index)
+                gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_by_niche(gene_expression,
+                                                                                                        cell_type,
+                                                                                                        edge_index,
+                                                                                                        self.niche_to_mask
+                                                                                                        )
 
             # convert to sparse tensors
-
 
             gene_expression_coo = gene_expression.tocoo()
             gene_expression_masked_coo = gene_expression_masked.tocoo()
@@ -302,21 +272,20 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
 
             # create graph
             graph = Data(x=gene_expression, edge_index=edge_index, y=gene_expression_masked, mask=mask,
-                         cell_type=cell_type, cell_type_masked=cell_type_masked, image=image, num_nodes = gene_expression.shape[0])
+                         cell_type=cell_type, cell_type_masked=cell_type_masked, image=image,
+                         num_nodes=gene_expression.shape[0])
             graphs.append(graph)
         return graphs
 
     @staticmethod
-    def masking_random(gene_expression, cell_type):
+    def masking_random(gene_expression, cell_type, random_to_mask=0.1):
         # create a mask of size equal to the number of cells
 
-        # Convert to LIL format for efficient modifications
-        gene_expression = gene_expression.tolil()
         # Mask is ture for cells that are masked
         mask = torch.zeros(gene_expression.shape[0], dtype=torch.bool)
 
         # randomly select some percentage of cells to mask
-        num_cells_to_mask = int(gene_expression.shape[0] * 0.1)  # e.g., 10%
+        num_cells_to_mask = int(gene_expression.shape[0] * random_to_mask)
         cells_to_mask = np.random.choice(gene_expression.shape[0], size=num_cells_to_mask, replace=False)
         mask[cells_to_mask] = True
 
@@ -325,9 +294,6 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
 
         # set the gene expression of the masked cells to zero
         gene_expression[cells_to_mask] = 0
-
-        # Convert back to CSR format for efficient operations
-        gene_expression = gene_expression.tocsr()
 
         # keep track of the cell types of the masked cells
         cell_type_masked = cell_type[cells_to_mask]
@@ -337,10 +303,6 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
     @staticmethod
     def masking_by_cell_type(gene_expression, cell_type, cell_type_to_mask):
 
-
-        # Convert to LIL format for efficient modifications
-        gene_expression = gene_expression.tolil()
-        
         # Create a mask of size equal to the number of a cell type
         # Mask is ture for cells that are masked
         mask = torch.zeros(gene_expression.shape[0], dtype=torch.bool)
@@ -349,18 +311,12 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
         cells_to_mask = np.where(cell_type == cell_type_to_mask)[0]
 
         mask[cells_to_mask] = True
-        # Count the number of True values in the mask
-        #um_true = sum(mask)
 
-        #print("Number of True values in the mask:", num_true)
         # save the masked gene expression
         gene_expression_masked = gene_expression[mask]
 
         # set the gene expression of the masked cells to zero
         gene_expression[cells_to_mask] = 0
-        
-        # Convert back to CSR format for efficient operations
-        gene_expression = gene_expression.tocsr()
 
         # keep track of the cell types of the masked cells
         cell_type_masked = cell_type[cells_to_mask]
@@ -368,17 +324,24 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
         return gene_expression, gene_expression_masked, mask, cell_type_masked
 
     @staticmethod
-    def masking_by_niche(gene_expression, cell_type, edge_index, extend=1):
-        # random select few cells then get the neighbors of those cells
-        num_cells_to_mask = int(gene_expression.shape[0] * 0.1)  # e.g., 10%
-        cells_to_mask = np.random.choice(gene_expression.shape[0], size=num_cells_to_mask, replace=False)
+    def masking_by_niche(gene_expression, cell_type, edge_index, niche_to_mask=0.05, extend=1):
+
+        # Determine the number of cells to mask based on the type of num_niche
+        if isinstance(niche_to_mask, float):
+            num_cells_to_mask = int(gene_expression.shape[0] * niche_to_mask)
+        elif isinstance(niche_to_mask, int):
+            num_cells_to_mask = niche_to_mask
+        else:
+            raise ValueError("num_niche must be either a float or an integer.")
+
+        cells_to_mask = torch.tensor(np.random.choice(gene_expression.shape[0], size=num_cells_to_mask, replace=False))
         cells_to_mask_neighbors = []
 
         # get the neighbors of the cells to mask with degree
-        for cell in cells_to_mask:
-            subset, edge_index, mapping, edge_mask = k_hop_subgraph(node_idx=cell, edge_index=edge_index,
-                                                                    num_hops=extend, relabel_nodes=False)
-            cells_to_mask_neighbors.extend(subset)
+        for cell in tqdm(cells_to_mask):
+            subset, _, _, _ = k_hop_subgraph(node_idx=cell.item(), edge_index=edge_index,
+                                             num_hops=extend, relabel_nodes=False)  # Change this line
+            cells_to_mask_neighbors.extend(subset.cpu().numpy())  # If subset is a tensor, convert to numpy
 
         cells_to_mask_neighbors = np.unique(cells_to_mask_neighbors)
         cells_to_mask = np.concatenate((cells_to_mask, cells_to_mask_neighbors))
@@ -398,5 +361,3 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
         cell_type_masked = cell_type[cells_to_mask]
 
         return gene_expression, gene_expression_masked, mask, cell_type_masked
-
-
