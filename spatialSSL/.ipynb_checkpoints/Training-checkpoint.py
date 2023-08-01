@@ -8,6 +8,7 @@ from torcheval.metrics import MeanSquaredError,R2Score
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
+
 def train_epoch(model, loader, optimizer, criterion,r2_metric, mse_metric, gene_expression=None, training=True):
 
     
@@ -25,20 +26,21 @@ def train_epoch(model, loader, optimizer, criterion,r2_metric, mse_metric, gene_
                 optimizer.zero_grad()
 
             if gene_expression is None:
-                input =  torch.tensor(data.x[0].toarray(), dtype=torch.float).to(device)
-                input_masked = torch.tensor(data.y[0].toarray(), dtype=torch.float).to(device)
+                #input =  torch.tensor(data.x, dtype=torch.float).to(device)
+                #input_masked = torch.tensor(data.y, dtype=torch.float).to(device)
                 
-                outputs = model(input.float(), data.edge_index.long().to(device))
-                loss = criterion(outputs[data.mask], input_masked.float())
-                r2_metric.update(input.cpu().detach(), outputs.cpu().detach())
-                mse_metric.update(input.cpu().detach(), outputs.cpu().detach())
+                outputs = model(data.x.float().to(device), data.edge_index.long().to(device))
+                loss = criterion(outputs[data.mask], data.y.float().to_dense().to(device))
+
+                # evaluate metrics
+                r2_metric.update(outputs[data.mask].cpu(),data.y.float().cpu())
+                mse_metric.update(outputs[data.mask].cpu(),data.y.float().cpu())
             else:
                 input = torch.tensor(gene_expression[data.x].toarray(), dtype=torch.double).to(device)
                 input[data.mask] = 0
                 target = torch.tensor(gene_expression[data.y].toarray(), dtype=torch.double).to(device)
                 outputs = model(input.float(), data.edge_index.to(device).long())
                 loss = criterion(outputs[data.mask], target.float())
-                targets_list.append(target.cpu())
 
             if training:
                 loss.backward()
@@ -49,8 +51,8 @@ def train_epoch(model, loader, optimizer, criterion,r2_metric, mse_metric, gene_
     return total_loss / len(loader.dataset), r2_metric.compute(),mse_metric.compute()
 
 def train(model, train_loader, val_loader, criterion, num_epochs=100, patience=5, optimizer = None,model_path=None,
-          gene_expression=None):
-    
+          gene_expression=None, minibatch = False):
+
     r2_metric_train = R2Score()
     r2_metric_val = R2Score()
     mse_metric_train = MeanSquaredError()
@@ -63,6 +65,7 @@ def train(model, train_loader, val_loader, criterion, num_epochs=100, patience=5
 
     for epoch in range(num_epochs):
         start_time = time.time()
+
         train_loss, train_r2,train_mse = train_epoch(model, train_loader, optimizer, criterion,r2_metric_train, mse_metric_train, gene_expression, training=True)
         val_loss, val_r2, val_mse = train_epoch(model, val_loader, optimizer,criterion ,r2_metric_val,mse_metric_val, gene_expression, training=False)
         # scheduler.step() # Decrease learning rate by scheduler
@@ -83,3 +86,6 @@ def train(model, train_loader, val_loader, criterion, num_epochs=100, patience=5
             f"Epoch {epoch + 1}/{num_epochs}, train loss: {train_loss:.4f}, train r2: {train_r2:.4f}, train mse: {train_mse:.4f},  val loss: {val_loss:.4f}, val r2: {val_r2:.4f}, val mse: {val_mse:.4f}, Time: {time.time() - start_time:.4f}s")
 
     print(f"Best val loss: {best_val_loss:.4f}, at epoch {best_epoch + 1}")
+
+
+

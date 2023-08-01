@@ -1,31 +1,10 @@
 import torch
 from torch import nn, optim
-from sklearn.metrics import r2_score
 import time
 from torcheval.metrics import MeanSquaredError,R2Score
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-
-def train_epoch_minibatch(model, loader, optimizer, criterion, training=True):
-    model.train() if training else model.eval()
-    total_loss = 0
-
-    for batch_size, n_id, adjs in loader:
-        # adjs holds a list of (edge_index, e_id, size) tuples.
-        adjs = [adj.to(device) for adj in adjs]
-
-        optimizer.zero_grad()
-        out = model(loader.x[n_id].float(), adjs)
-        loss = criterion(out, loader.y[n_id[loader.train_mask]])
-        if training:
-            loss.backward()
-            optimizer.step()
-
-        total_loss += float(loss)
-
-    return total_loss
 
 def train_epoch(model, loader, optimizer, criterion,r2_metric, mse_metric, gene_expression=None, training=True):
 
@@ -47,12 +26,15 @@ def train_epoch(model, loader, optimizer, criterion,r2_metric, mse_metric, gene_
                 #input =  torch.tensor(data.x, dtype=torch.float).to(device)
                 #input_masked = torch.tensor(data.y, dtype=torch.float).to(device)
                 
+                target = data.y.float().to_dense()
+                
                 outputs = model(data.x.float().to(device), data.edge_index.long().to(device))
-                loss = criterion(outputs[data.mask], data.y.float().to_dense().to(device))
-
+                loss = criterion(outputs[data.mask],target.to(device))
+                
                 # evaluate metrics
-                r2_metric.update(outputs[data.mask].cpu(),data.y.float().to_dense().cpu())
-                mse_metric.update(outputs[data.mask].cpu(),data.y.float().to_dense().cpu())
+
+                r2_metric.update(outputs[data.mask].cpu(),target.cpu())
+                mse_metric.update(outputs[data.mask].cpu(),target.cpu())
             else:
                 input = torch.tensor(gene_expression[data.x].toarray(), dtype=torch.double).to(device)
                 input[data.mask] = 0
@@ -84,12 +66,8 @@ def train(model, train_loader, val_loader, criterion, num_epochs=100, patience=5
     for epoch in range(num_epochs):
         start_time = time.time()
 
-        if minibatch:
-            train_loss = train_epoch_minibatch(model, train_loader, optimizer, criterion, training=True)
-            val_loss = train_epoch_minibatch(model, val_loader, optimizer, criterion, training=False)
-        else:
-            train_loss, train_r2,train_mse = train_epoch(model, train_loader, optimizer, criterion,r2_metric_train, mse_metric_train, gene_expression, training=True)
-            val_loss, val_r2, val_mse = train_epoch(model, val_loader, optimizer,criterion ,r2_metric_val,mse_metric_val, gene_expression, training=False)
+        train_loss, train_r2,train_mse = train_epoch(model, train_loader, optimizer, criterion,r2_metric_train, mse_metric_train, gene_expression, training=True)
+        val_loss, val_r2, val_mse = train_epoch(model, val_loader, optimizer,criterion ,r2_metric_val,mse_metric_val, gene_expression, training=False)
         # scheduler.step() # Decrease learning rate by scheduler
 
         if val_loss < best_val_loss:
