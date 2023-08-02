@@ -339,7 +339,7 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
 
         # get the neighbors of the cells to mask with degree
         for cell in tqdm(cells_to_mask):
-            print(cell.item())
+     
             subset, _, _, _ = k_hop_subgraph(node_idx=cell.item(), edge_index=edge_index,
                                              num_hops=extend, relabel_nodes=False)  # Change this line
             cells_to_mask_neighbors.extend(subset.cpu().numpy())  # If subset is a tensor, convert to numpy
