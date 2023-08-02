@@ -83,7 +83,7 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
         # TODO: Add default parameters for this methods (e.g. batch_size=32)
         super(EgoNetDatasetConstructor, self).__init__(*args, **kwargs)
 
-    def construct_graph(self):
+    def construct_graph(self, show_progress_bar=False):
 
         # Constructing graph from coordinates using scanpy's spatial_neighbors function
         images = pd.unique(self.adata.obs[self.image_col])
@@ -92,7 +92,7 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
 
         index = 0
 
-        for image in tqdm(images, desc=f"Processing {len(images)} images"):
+        for image in tqdm(images, desc=f"Processing {len(images)} images", disable=not show_progress_bar):
             sub_adata = self.adata[self.adata.obs[self.image_col] == image]  # .copy()
             sq.gr.spatial_neighbors(adata=sub_adata, radius=self.radius, key_added="adjacency_matrix",
                                     coord_type="generic")
@@ -104,7 +104,7 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
         subgraphs = []
 
         # for image in tqdm(images, desc=f"Processing {len(images)} images"):
-        for idx in tqdm(range(len(self.adata)), desc=f"Processing {len(self.adata)} nodes"):
+        for idx in tqdm(range(len(self.adata)), desc=f"Processing {len(self.adata)} nodes", disable=not show_progress_bar):
             # create subgraph for each node
             try:
 
