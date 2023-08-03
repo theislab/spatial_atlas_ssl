@@ -11,10 +11,9 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def train_epoch(model, loader, optimizer, criterion, gene_expression=None, training=True):
-    if training:
-        model.train()
-    else:
-        model.eval()
+
+
+    model.train(training)
 
     total_loss = 0
 
