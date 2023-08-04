@@ -96,8 +96,9 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
             sub_adata = self.adata[self.adata.obs[self.image_col] == image]  # .copy()
             sq.gr.spatial_neighbors(adata=sub_adata, radius=self.radius, key_added="adjacency_matrix",
                                     coord_type="generic")
-            edge_index_full, _ = from_scipy_sparse_matrix(sub_adata.obsp['adjacency_matrix_connectivities'])
-            graphs[image] = (edge_index_full, index)
+            edge_index_full, edge_weight_full = from_scipy_sparse_matrix(sub_adata.obsp['adjacency_matrix_distances'])
+            #edge_index_full, _ = from_scipy_sparse_matrix(sub_adata.obsp['adjacency_matrix_connectivities'])
+            graphs[image] = (edge_index_full, index, edge_weight_full)
             index += len(sub_adata)
 
 
@@ -119,7 +120,7 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
                 new_index = torch.nonzero(subset == idx - offset).squeeze()
                 mask = torch.zeros(subset.shape[0], dtype=torch.bool)
                 mask[new_index] = True
-                data = Data(x=subset + offset, y=idx, edge_index=edge_index, mask=mask)#, celltype=self.adata.obs[self.label_col][idx])
+                data = Data(x=subset + offset, y=idx, edge_index=edge_index, mask=mask, edge_weight=edge_weight_full[edge_mask])#, celltype=self.adata.obs[self.label_col][idx])
                 subgraphs.append(data)
             except Exception as e:
                 print(f"Error processing node {idx}")
