@@ -85,7 +85,7 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
 
     def construct_graph(self, show_progress_bar=False):
 
-        # Constructing graph from coordinates using scanpy's spatial_neighbors function
+        # Constructing graph_info from coordinates using scanpy's spatial_neighbors function
         images = pd.unique(self.adata.obs[self.image_col])
 
         graphs = {}
@@ -109,10 +109,13 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
             # create subgraph for each node
             try:
 
-                offset = graphs[self.adata.obs[self.image_col][idx]][1]
+
+                graph_info = graphs[self.adata.obs[self.image_col][idx]]
+                offset = graph_info[1]
+
 
                 subset, edge_index, mapping, edge_mask = k_hop_subgraph(node_idx=[idx - offset], edge_index=
-                graphs[self.adata.obs[self.image_col][idx]][0], num_hops=self.node_level, relabel_nodes=True)
+                graph_info[0], num_hops=self.node_level, relabel_nodes=True)
 
                 if len(subset) == 1:
                     continue
@@ -120,7 +123,7 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
                 new_index = torch.nonzero(subset == idx - offset).squeeze()
                 mask = torch.zeros(subset.shape[0], dtype=torch.bool)
                 mask[new_index] = True
-                data = Data(x=subset + offset, y=idx, edge_index=edge_index, mask=mask, edge_weights=edge_weight_full[edge_mask])#, celltype=self.adata.obs[self.label_col][idx])
+                data = Data(x=subset + offset, y=idx, edge_index=edge_index, mask=mask, edge_weights=graph_info[2][edge_mask])#, celltype=self.adata.obs[self.label_col][idx])
                 subgraphs.append(data)
             except Exception as e:
                 print(e)
