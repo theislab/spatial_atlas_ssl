@@ -34,7 +34,7 @@ def train_epoch(model, loader, optimizer, criterion, gene_expression=None, train
                 input = torch.tensor(gene_expression[data.x].toarray(), dtype=torch.double).to(device)
                 input[data.mask] = 0
                 target = torch.tensor(gene_expression[data.y].toarray(), dtype=torch.double).to(device)
-                outputs = model(input.float(), data.edge_index.to(device).long(), data.edge_weights.float())
+                outputs = model(input.float(), data.edge_index.to(device).long(), data.edge_weights.to(device).float())
                 loss = criterion(outputs[data.mask], target.float())
 
             if training:
