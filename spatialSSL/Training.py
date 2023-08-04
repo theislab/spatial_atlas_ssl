@@ -10,7 +10,7 @@ from tqdm.auto import tqdm
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-def train_epoch(model, loader, optimizer, criterion, gene_expression=None, training=True):
+def train_epoch(model, loader, optimizer, criterion, gene_expression=None, training=True, output=False):
 
 
     model.train(training)
@@ -44,6 +44,9 @@ def train_epoch(model, loader, optimizer, criterion, gene_expression=None, train
             total_loss += loss.item() * data.num_graphs
             r2.update(outputs[data.mask].flatten(), target.flatten())
 
+    if output:
+        return total_loss / len(loader.dataset), r2.compute().cpu().numpy(), (outputs[data.mask], target.float())
+
     return total_loss / len(loader.dataset), r2.compute().cpu().numpy()
 
 
@@ -65,7 +68,6 @@ def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100,
 
     # records time
     start_time = time.time()
-
 
 
     # training loop
