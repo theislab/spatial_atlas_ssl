@@ -123,6 +123,7 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
                 data = Data(x=subset + offset, y=idx, edge_index=edge_index, mask=mask, edge_weights=edge_weight_full[edge_mask])#, celltype=self.adata.obs[self.label_col][idx])
                 subgraphs.append(data)
             except Exception as e:
+                print(e)
                 print(f"Error processing node {idx}")
                 continue
 
