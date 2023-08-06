@@ -7,6 +7,8 @@ import pandas as pd
 import scanpy as sc
 import squidpy as sq
 import torch
+from scipy.sparse import csr_matrix
+from sklearn.preprocessing import LabelEncoder
 from torch_geometric.data import Data
 from torch_geometric.utils import from_scipy_sparse_matrix, k_hop_subgraph
 from tqdm.auto import tqdm
@@ -14,7 +16,7 @@ from tqdm.auto import tqdm
 
 class SpatialDatasetConstructor(ABC):
     def __init__(self, file_path: str, image_col: str, label_col: str, include_label: bool, radius: float,
-                 node_level: int = 1, mask_method='random',random_to_mask = 0.1, **kwargs):
+                 node_level: int = 1, mask_method='random',random_to_mask = 0.1,use_edge_weight = False, **kwargs):
         self.file_path = file_path
         self.image_col = image_col
         self.label_col = label_col
@@ -28,11 +30,17 @@ class SpatialDatasetConstructor(ABC):
         self.random_to_mask = random_to_mask
         self.cell_type_to_mask = None
         self.niche_to_mask = 1
+        self.use_edge_weight = use_edge_weight
+        self.cell_type_encoding = None
+
 
         if self.mask_method == 'cell_type':
             self.cell_type_to_mask = kwargs['cell_type_to_mask']
+
         if self.mask_method == 'niche':
             self.niche_to_mask = kwargs['niche_to_mask']
+
+
 
     def load_data(self):
         # Load data from .h5ad file and return a scanpy AnnData object
@@ -208,6 +216,7 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
 class FullImageDatasetConstructor(SpatialDatasetConstructor):
     def __init__(self, *args, **kwargs):  # TODO: Add default parameters for this methods (e.g. batch_size=4)...
         super(FullImageDatasetConstructor, self).__init__(*args, **kwargs)
+        self.encode_book = None
 
     def construct_graph(self):
         # Constructing graph from coordinates using scanpy's spatial_neighbors function
@@ -217,6 +226,12 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
 
         images = np.unique(self.adata.obs[self.image_col])
 
+        encode_cell_type = LabelEncoder()
+        encode_cell_type.fit(self.adata.obs[self.label_col].values)
+        self.adata.obs['cell_type_encoded'] = encode_cell_type.transform(self.adata.obs[self.label_col].values)
+
+        self.encode_book = dict(zip(encode_cell_type.classes_, encode_cell_type.transform(encode_cell_type.classes_)))
+
         graphs = []
         for image in tqdm(images, desc="Constructing Graphs"):
             sub_adata = self.adata[self.adata.obs[self.image_col] == image].copy()
@@ -224,7 +239,7 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
                                     coord_type="generic")
             edge_index, _ = from_scipy_sparse_matrix(sub_adata.obsp['adjacency_matrix_connectivities'])
 
-            cell_type = sub_adata.obs[self.label_col].values
+            cell_type = sub_adata.obs["cell_type_encoded"].values
 
             # assuming gene expression is stored in sub_adata.X
             gene_expression = sub_adata.X.tolil()
@@ -250,31 +265,58 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
                                                                                                         edge_index,
                                                                                                         self.niche_to_mask
                                                                                                         )
-
             # convert to sparse tensors
-
-            gene_expression_coo = gene_expression.tocoo()
-            gene_expression_masked_coo = gene_expression_masked.tocoo()
+            gene_expression_csr = gene_expression.tocsr()
+            gene_expression_masked_csr = gene_expression_masked.tocsr()
 
             # convert to pytorch tensor
             # convert to tensors
-            gene_expression = torch.sparse_coo_tensor(
-                indices=np.vstack((gene_expression_coo.row, gene_expression_coo.col)),
-                values=gene_expression_coo.data,
-                size=gene_expression_coo.shape,
-                dtype=torch.double)
+            gene_expression = torch.sparse_csr_tensor(
+                gene_expression_csr.indices,
+                gene_expression_csr.indptr,
+                gene_expression_csr.data,
+                size=gene_expression_csr.shape
+            )
 
-            gene_expression_masked = torch.sparse_coo_tensor(
-                indices=np.vstack((gene_expression_masked_coo.row, gene_expression_masked_coo.col)),
-                values=gene_expression_masked_coo.data,
-                size=gene_expression_masked_coo.shape,
-                dtype=torch.double)
+            gene_expression_masked = torch.sparse_csr_tensor(
+                gene_expression_masked_csr.indices,
+                gene_expression_masked_csr.indptr,
+                gene_expression_masked_csr.data,
+                size=gene_expression_masked_csr.shape
+            )
 
+            if self.use_edge_weight:
+                distances = sub_adata.obsp['adjacency_matrix_distances']
+
+                # Apply a transformation to the distances if necessary
+                # For example, using an exponential decay function
+                edge_weights = np.exp(-distances.data / self.radius)
+
+                # Get the sparse CSR representation of the distances
+                distances_csr = csr_matrix((edge_weights, distances.indices, distances.indptr), shape=distances.shape)
+
+                # Convert to PyTorch sparse CSR tensor
+                edge_weights_tensor = torch.sparse_csr_tensor(distances_csr.indices, distances_csr.indptr,
+                                                         distances_csr.data, size=distances_csr.shape,
+                                                         dtype=torch.double)
+
+
+
+                # Include the edge weights in the Data object
+                graph = Data(x=gene_expression, edge_index=edge_index, edge_attr=edge_weights_tensor, y=gene_expression_masked,
+                             mask=mask,
+                             cell_type=cell_type, cell_type_masked=cell_type_masked, image=image,
+                             num_nodes=gene_expression.shape[0])
+                graphs.append(graph)
+
+
+
+            else:
             # create graph
-            graph = Data(x=gene_expression, edge_index=edge_index, y=gene_expression_masked, mask=mask,
-                         cell_type=cell_type, cell_type_masked=cell_type_masked, image=image,
-                         num_nodes=gene_expression.shape[0])
-            graphs.append(graph)
+                graph = Data(x=gene_expression, edge_index=edge_index, y=gene_expression_masked, mask=mask,
+                             cell_type=cell_type, cell_type_masked=cell_type_masked, image=image,
+                             num_nodes=gene_expression.shape[0])
+                graphs.append(graph)
         return graphs
 
     @staticmethod
