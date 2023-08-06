@@ -1,13 +1,10 @@
 import torch
 from torch import nn, optim
-from sklearn.metrics import r2_score
 import time
 from torcheval.metrics import MeanSquaredError,R2Score
 
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-
+device = "cpu" #torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def train_epoch(model, loader, optimizer, criterion,r2_metric, mse_metric, gene_expression=None, training=True):
 
@@ -29,12 +26,16 @@ def train_epoch(model, loader, optimizer, criterion,r2_metric, mse_metric, gene_
                 #input =  torch.tensor(data.x, dtype=torch.float).to(device)
                 #input_masked = torch.tensor(data.y, dtype=torch.float).to(device)
                 
+                target = data.y.float().to_dense()
+                
                 outputs = model(data.x.float().to(device), data.edge_index.long().to(device))
-                loss = criterion(outputs[data.mask], data.y.float().to_dense().to(device))
-
+                loss = criterion(outputs[data.mask],target.to(device))
+                
                 # evaluate metrics
-                r2_metric.update(outputs[data.mask].cpu(),data.y.float().cpu())
-                mse_metric.update(outputs[data.mask].cpu(),data.y.float().cpu())
+
+                r2_metric.update(outputs[data.mask].cpu(),target.cpu())
+                mse_metric.update(outputs[data.mask].cpu(),target.cpu())
+
             else:
                 input = torch.tensor(gene_expression[data.x].toarray(), dtype=torch.double).to(device)
                 input[data.mask] = 0

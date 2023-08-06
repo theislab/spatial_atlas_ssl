@@ -4,7 +4,7 @@ import time
 from torcheval.metrics import MeanSquaredError,R2Score
 
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = "cpu" #torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def train_epoch(model, loader, optimizer, criterion,r2_metric, mse_metric, gene_expression=None, training=True):
 
