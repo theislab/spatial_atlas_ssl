@@ -31,7 +31,6 @@ class SpatialDatasetConstructor(ABC):
         self.cell_type_to_mask = None
         self.niche_to_mask = 1
         self.use_edge_weight = use_edge_weight
-        self.cell_type_encoding = None
 
 
         if self.mask_method == 'cell_type':
@@ -94,6 +93,7 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
         """
         # TODO: Add default parameters for this methods (e.g. batch_size=32)
         super(EgoNetDatasetConstructor, self).__init__(*args, **kwargs)
+
 
     def construct_graph(self):
 
@@ -266,24 +266,22 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
                                                                                                         self.niche_to_mask
                                                                                                         )
             # convert to sparse tensors
-            gene_expression_csr = gene_expression.tocsr()
-            gene_expression_masked_csr = gene_expression_masked.tocsr()
+            gene_expression_coo = gene_expression.tocoo()
+            gene_expression_masked_coo = gene_expression_masked.tocoo()
 
             # convert to pytorch tensor
             # convert to tensors
-            gene_expression = torch.sparse_csr_tensor(
-                gene_expression_csr.indices,
-                gene_expression_csr.indptr,
-                gene_expression_csr.data,
-                size=gene_expression_csr.shape
-            )
+            gene_expression = torch.sparse_coo_tensor(
+                indices=np.vstack((gene_expression_coo.row, gene_expression_coo.col)),
+                values=gene_expression_coo.data,
+                size=gene_expression_coo.shape,
+                dtype=torch.double)
 
-            gene_expression_masked = torch.sparse_csr_tensor(
-                gene_expression_masked_csr.indices,
-                gene_expression_masked_csr.indptr,
-                gene_expression_masked_csr.data,
-                size=gene_expression_masked_csr.shape
-            )
+            gene_expression_masked = torch.sparse_coo_tensor(
+                indices=np.vstack((gene_expression_masked_coo.row, gene_expression_masked_coo.col)),
+                values=gene_expression_masked_coo.data,
+                size=gene_expression_masked_coo.shape,
+                dtype=torch.double)
 
             if self.use_edge_weight:
                 distances = sub_adata.obsp['adjacency_matrix_distances']
@@ -292,15 +290,14 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
                 # For example, using an exponential decay function
                 edge_weights = np.exp(-distances.data / self.radius)
 
-                # Get the sparse CSR representation of the distances
-                distances_csr = csr_matrix((edge_weights, distances.indices, distances.indptr), shape=distances.shape)
+                # Get the sparse COO representation of the distances
+                distances_coo = distances.tocoo()
 
-                # Convert to PyTorch sparse CSR tensor
-                edge_weights_tensor = torch.sparse_csr_tensor(distances_csr.indices, distances_csr.indptr,
-                                                         distances_csr.data, size=distances_csr.shape,
-                                                         dtype=torch.double)
-
-
+                edge_weights_tensor = torch.sparse_coo_tensor(
+                    indices=np.vstack((distances_coo.row, distances_coo.col)),
+                    values=distances_coo.data,
+                    size=distances_coo.shape,
+                    dtype=torch.double)
 
                 # Include the edge weights in the Data object
                 graph = Data(x=gene_expression, edge_index=edge_index, edge_attr=edge_weights_tensor, y=gene_expression_masked,
