@@ -249,7 +249,8 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
                 gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_random(gene_expression,
                                                                                                       cell_type,
                                                                                                       self.random_to_mask
-                                                                                                      )
+                                                                                        )
+
             elif self.mask_method == 'cell_type':
 
                 # check if cell type to mask is in the dataset
