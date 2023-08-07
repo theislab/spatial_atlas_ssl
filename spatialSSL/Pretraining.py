@@ -1,20 +1,15 @@
-import torch
-from torch import nn, optim
-from sklearn.metrics import r2_score as sk_r2_score
 import time
+import torch
 from torcheval.metrics import R2Score
-from torcheval.metrics.functional import r2_score
-
 from tqdm.auto import tqdm
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-
-def train_epoch(model, loader, optimizer, criterion, gene_expression=None, training=True, output=False):
+def train_epoch(model, loader, optimizer, criterion, gene_expression=None, training=True, output=False,
+                masking_ratio=0.3):
 
 
     model.train(training)
-
     total_loss = 0
 
     r2 = R2Score().to(device)
@@ -31,29 +26,40 @@ def train_epoch(model, loader, optimizer, criterion, gene_expression=None, train
                 loss = criterion(outputs[data.mask], data.y.float())
                 target = data.y
             else:
-                input = torch.tensor(gene_expression[data.x].toarray(), dtype=torch.double).to(device)
-                input[data.mask] = 0
-                target = torch.tensor(gene_expression[data.y].toarray(), dtype=torch.double).to(device)
-                outputs = model(input.float(), data.edge_index.to(device).long(), data.edge_weights.to(device).float())
-                loss = criterion(outputs[data.mask], target.float())
+
+                input_model = torch.tensor(gene_expression[data.x].toarray(), dtype=torch.double).to(device)
+
+                if True:
+                    mask = torch.rand(input_model.shape)  # uniformly distributed between 0 and 1
+                    mask = mask < masking_ratio
+                    target = torch.tensor(gene_expression[data.x].toarray()).to(device)
+                else:
+                    mask = data.mask
+                    target = torch.tensor(gene_expression[data.y].toarray(), dtype=torch.double).to(device)
+
+                input_model[mask] = 0
+                outputs = model(input_model.float(), data.edge_index.to(device).long(),
+                                data.edge_weights.to(device).float())
+                loss = criterion(outputs, target.float())
 
             if training:
                 loss.backward()
                 optimizer.step()
 
             total_loss += loss.item() * data.num_graphs
-            r2.update(outputs[data.mask].flatten(), target.flatten())
+            r2.update(outputs.flatten(), target.flatten())
 
-    if output:
-        return total_loss / len(loader.dataset), r2.compute().cpu().numpy(), (outputs[data.mask], target.float())
+            # r2.update(outputs[data.mask].flatten(), target.flatten())
 
-    return total_loss / len(loader.dataset), r2.compute().cpu().numpy()
+    return total_loss / len(loader.dataset), r2.compute().cpu().numpy(), (
+        outputs, target.float()) if output else None #outputs[data.mask]
 
 
-def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100, patience=5, model_path=None,
-          gene_expression=None):
-
+def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100, patience=5, model_path=None, gene_expression=None, masking_ratio=0.3):
     model = model.to(device)
+
+
+
 
     # records losses
     train_losses = []
@@ -69,14 +75,13 @@ def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100,
     # records time
     start_time = time.time()
 
-
     # training loop
     for epoch in tqdm(range(num_epochs), desc='Training model'):
         epoch_start_time = time.time()
-        train_loss, train_r2 = train_epoch(model, train_loader, optimizer, criterion=criterion,
-                                           gene_expression=gene_expression, training=True)
-        val_loss, val_r2 = train_epoch(model, val_loader, optimizer=None, criterion=criterion,
-                                       gene_expression=gene_expression, training=False)
+        train_loss, train_r2, _ = train_epoch(model, train_loader, optimizer, criterion=criterion,
+                                           gene_expression=gene_expression, training=True, masking_ratio=masking_ratio)
+        val_loss, val_r2, _ = train_epoch(model, val_loader, optimizer=None, criterion=criterion,
+                                       gene_expression=gene_expression, training=False, masking_ratio=masking_ratio)
 
         # records losses
         train_losses.append(train_loss)
@@ -96,13 +101,15 @@ def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100,
                 print('Early stopping triggered!, no improvement in val loss for {} epochs'.format(patience))
                 break
 
-        print(f"Epoch {epoch + 1}/{num_epochs}, train loss: {train_loss:.4f}, train r2: {train_r2:.4f},  val loss: {val_loss:.4f}, val r2: {val_r2:.4f}, Time: {time.time() - epoch_start_time:.2f}s")
+        print(
+            f"Epoch {epoch + 1}/{num_epochs}, train loss: {train_loss:.4f}, train r2: {train_r2:.4f},  val loss: {val_loss:.4f}, val r2: {val_r2:.4f}, Time: {time.time() - epoch_start_time:.2f}s")
 
     print(f"Best val loss: {best_val_loss:.4f}, at epoch {best_epoch + 1}")
-    return TrainResults(train_losses, train_r2_scores, val_losses, val_r2_scores, best_epoch, epoch + 1, time.time() - start_time)
+    return TrainResults(train_losses, train_r2_scores, val_losses, val_r2_scores, best_epoch, epoch + 1,
+                        time.time() - start_time)
 
 
-class TrainResults():
+class TrainResults:
     def __init__(self, train_losses, train_r2s, val_losses, val_r2s, best_epoch, epochs_trained, total_training_time):
         self.train_losses = train_losses
         self.train_r2s = train_r2s

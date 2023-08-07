@@ -6,11 +6,15 @@ class GCN(nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels):
         super().__init__()
         self.conv1 = GCNConv(in_channels, hidden_channels)
-        self.lin1 = nn.Linear(hidden_channels, out_channels)
+        self.conv2 = GCNConv(hidden_channels, hidden_channels)
+        self.conv3 = GCNConv(hidden_channels, out_channels)
+        #self.lin1 = nn.Linear(hidden_channels, out_channels)
 
     def forward(self, x: Tensor, edge_index: Tensor, edge_weights : Tensor = None) -> Tensor:
         x = self.conv1(x, edge_index, edge_weights).relu()
-        x = self.lin1(x)#.relu()
+        x = self.conv2(x, edge_index, edge_weights).relu()
+        x = self.conv3(x, edge_index, edge_weights)#.relu()
+        #x = self.lin1(x)#.relu()
         return x
 
 
