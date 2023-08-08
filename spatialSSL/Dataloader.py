@@ -16,7 +16,7 @@ from tqdm.auto import tqdm
 
 class SpatialDatasetConstructor(ABC):
     def __init__(self, file_path: str, image_col: str, label_col: str, include_label: bool, radius: float,
-                 node_level: int = 1, mask_method='random',random_to_mask = 0.1,use_edge_weight = False, **kwargs):
+                 node_level: int = 1, mask_method='random',random_to_mask = 0.1,use_edge_weight = False,downstream = False, **kwargs):
         self.file_path = file_path
         self.image_col = image_col
         self.label_col = label_col
@@ -31,6 +31,7 @@ class SpatialDatasetConstructor(ABC):
         self.cell_type_to_mask = None
         self.niche_to_mask = 1
         self.use_edge_weight = use_edge_weight
+        self.downstream = downstream
 
 
         if self.mask_method == 'cell_type':
@@ -217,7 +218,7 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
     def __init__(self, *args, **kwargs):  # TODO: Add default parameters for this methods (e.g. batch_size=4)...
         super(FullImageDatasetConstructor, self).__init__(*args, **kwargs)
         self.encode_book = None
-
+        
     def construct_graph(self):
         # Constructing graph from coordinates using scanpy's spatial_neighbors function
         gene_expression_masked = None
@@ -243,7 +244,8 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
 
             # assuming gene expression is stored in sub_adata.X
             gene_expression = sub_adata.X.tolil()
-
+            gene_expression_intact = gene_expression.copy()
+            
             # select masking technique
             if self.mask_method == 'random':
                 gene_expression, gene_expression_masked, mask, cell_type_masked = self.masking_random(gene_expression,
@@ -267,6 +269,15 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
                                                                                                         self.niche_to_mask
                                                                                                         )
             # convert to sparse tensors
+            if self.downstream:
+                gene_expression_intact_coo =  gene_expression_intact.tocoo()
+                
+                gene_expression_intact = torch.sparse_coo_tensor(
+                indices=np.vstack((gene_expression_intact_coo.row, gene_expression_intact_coo.col)),
+                values=gene_expression_intact_coo.data,
+                size=gene_expression_intact_coo.shape,
+                dtype=torch.double)
+                
             gene_expression_coo = gene_expression.tocoo()
             gene_expression_masked_coo = gene_expression_masked.tocoo()
 
@@ -283,7 +294,20 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
                 values=gene_expression_masked_coo.data,
                 size=gene_expression_masked_coo.shape,
                 dtype=torch.double)
-
+            
+            cell_type_masked = torch.tensor(cell_type_masked)
+            cell_type = torch.tensor(cell_type)
+            #image = torch.tensor(image)
+            
+            if self.downstream:
+                # save the intact gene expression
+                graph = Data(x=gene_expression, edge_index=edge_index, y=gene_expression_masked, mask=mask,
+                             cell_type=cell_type, cell_type_masked=cell_type_masked, image=image,
+                             num_nodes=gene_expression.shape[0])
+                
+                graphs.append(graph)
+            
+            
             if self.use_edge_weight:
                 distances = sub_adata.obsp['adjacency_matrix_distances']
 
