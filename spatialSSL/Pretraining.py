@@ -2,6 +2,7 @@ import time
 import torch
 from torcheval.metrics import R2Score
 from tqdm.auto import tqdm
+import matplotlib.pyplot as plt
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -123,7 +124,24 @@ class TrainResults:
         return f"Best val loss: {self.val_losses[self.best_epoch]:.4f}, best r2 val: {self.val_r2s[self.best_epoch]:.4f}, at epoch {self.best_epoch + 1}"
 
     def plot(self):
-        import matplotlib.pyplot as plt
+        fig, axes = plt.subplots(2, 1, figsize=(10, 8))  # Create a subplot with 2 rows
+
+        # Plot the first set of data
+        axes[0].plot(self.train_losses, label='train loss')
+        axes[0].plot(self.val_losses, label='val loss')
+        axes[0].title.set_text("Losses, best val loss: {:.4f}, at epoch {}".format(self.val_losses[self.best_epoch] , self.best_epoch + 1))
+
+        axes[0].legend()
+
+        # Plot the second set of data
+        axes[1].plot(self.train_r2s, label='train r2')
+        axes[1].plot(self.val_r2s, label='val r2')
+        axes[1].title.set_text("R2 scores, best val r2: {:.4f}, at epoch {}".format(self.val_r2s[self.best_epoch] , self.best_epoch + 1))
+        axes[1].legend()
+
+        # Return the figure object containing the subplots
+        return fig
+
         plt.plot(self.train_losses, label='train loss')
         plt.plot(self.val_losses, label='val loss')
         plt.legend()
