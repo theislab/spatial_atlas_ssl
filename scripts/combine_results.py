@@ -38,4 +38,22 @@ with PdfPages(outputfile) as pdf:
     ax.set_xlabel("Model")
     pdf.savefig(ax.figure)
 
+    # plot higest r2 using seaborn
+    ax = sns.barplot(x="file", y="best_val_r2", data=df)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+    ax.figure.tight_layout()
+
+    # auto set y limit based on data
+    ax.set_ylim(df["best_val_loss"].min() / 1.1, df["best_val_loss"].max() * 1.1)
+
+    # add labels to bars in white color
+    for p in ax.patches:
+        ax.annotate(format(p.get_height(), '.3f'), (p.get_x() + p.get_width() / 2., p.get_height()),
+                    ha='center', va='center', xytext=(0, -10), textcoords='offset points', color='white')
+
+    # add title and axis labels
+    ax.set_ylabel("Best R2 score")
+    ax.set_xlabel("Model")
+    pdf.savefig(ax.figure)
+
 
