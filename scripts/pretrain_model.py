@@ -32,7 +32,7 @@ adata = adata[sorted_obs_df.index]
 train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
 
-model = spatialSSL.Models.GCN(in_channels=550, hidden_channels=550, out_channels=550)
+model = spatialSSL.Models.GCN(in_channels=550, hidden_channels=128, out_channels=550)
 
 
 criterion = torch.nn.MSELoss()
