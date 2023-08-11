@@ -28,8 +28,21 @@ rule pretraining:
         pretrain_epochs = config['pretrain_epochs'],
     output:
         model = "snake_output/pretrain_models/model_{k_hop}_{radius}_{masking_mode}_{pretrained}.pt",
-        summary_pdf = "snake_output/pretrain_models/summary_{k_hop}_{radius}_{masking_mode}_{pretrained}.pdf"
+        summary_pdf = "snake_output/pretrain_models/summary_{k_hop}_{radius}_{masking_mode}_{pretrained}.pdf",
+        summary_txt= "snake_output/pretrain_models/summary_{k_hop}_{radius}_{masking_mode}_{pretrained}.csv",
     shell:
         """
-        python scripts/pretrain_model.py {input.trainset} {input.valset} {output.model} {wildcards.masking_mode} {params} {input.adata} {output.summary_pdf}
+        python scripts/pretrain_model.py {input.trainset} {input.valset} {output.model} {wildcards.masking_mode} {params} {input.adata} {output.summary_pdf} {output.summary_txt}
+        """
+
+rule combine_results:
+    input:
+        files = expand("snake_output/pretrain_models/summary_{k_hop}_{radius}_{masking_mode}_{pretrained}.csv",k_hop=config[
+    'k_hop'],radius=config['radius'],masking_mode=config['masking_mode'],pretrained=config['pretrain_structure']),
+        folder = "snake_output/pretrain_models"
+    output:
+        "snake_output/pretrain_models/summary.pdf"
+    shell:
+        """
+        python scripts/combine_results.py {input.folder} {output}
         """

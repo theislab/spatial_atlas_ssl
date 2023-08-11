@@ -41,6 +41,11 @@ optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 training_summary = spatialSSL.Pretraining.train(model, train_loader, val_loader, optimizer, criterion, num_epochs, patience, model_path = output_model, gene_expression=adata.X, masking_ratio=masking_mode)
 
+
+# Save training summary to pdf
 with PdfPages(args[10]) as pdf:
     fig = training_summary.plot()
     pdf.savefig(fig)
+
+# save training summary to csv
+training_summary.to_pandas().to_csv(args[11], index=False)

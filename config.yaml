@@ -2,14 +2,14 @@ rules: "rules/"
 adata: "example_files/img_1199670929.h5ad"
 k_hop:
   - 2
-  #- 3
+  - 3
 radius:
   - 20
   - 30
 
 
 
-pretrain_epochs: 100
+pretrain_epochs: 2
 pretrain_lr: 0.001
 pretrain_batch_size: 64
 pretrain_patience: 10
@@ -24,7 +24,7 @@ masking_mode:
     #- 0.3
     - 0.5
     #- 0.7
-    - 0.9
+    #- 0.9
 
 pretrain_structure:
     - "GCN"

@@ -1,4 +1,6 @@
 import time
+
+import pandas as pd
 import torch
 from torcheval.metrics import R2Score
 from tqdm.auto import tqdm
@@ -6,10 +8,9 @@ import matplotlib.pyplot as plt
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+
 def train_epoch(model, loader, optimizer, criterion, gene_expression=None, training=True, output=False,
                 masking_ratio=0.3):
-
-
     model.train(training)
     total_loss = 0
 
@@ -53,14 +54,12 @@ def train_epoch(model, loader, optimizer, criterion, gene_expression=None, train
             # r2.update(outputs[data.mask].flatten(), target.flatten())
 
     return total_loss / len(loader.dataset), r2.compute().cpu().numpy(), (
-        outputs, target.float()) if output else None #outputs[data.mask]
+        outputs, target.float()) if output else None  # outputs[data.mask]
 
 
-def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100, patience=5, model_path=None, gene_expression=None, masking_ratio=0.3):
+def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100, patience=5, model_path=None,
+          gene_expression=None, masking_ratio=0.3):
     model = model.to(device)
-
-
-
 
     # records losses
     train_losses = []
@@ -80,9 +79,10 @@ def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100,
     for epoch in tqdm(range(num_epochs), desc='Training model'):
         epoch_start_time = time.time()
         train_loss, train_r2, _ = train_epoch(model, train_loader, optimizer, criterion=criterion,
-                                           gene_expression=gene_expression, training=True, masking_ratio=masking_ratio)
+                                              gene_expression=gene_expression, training=True,
+                                              masking_ratio=masking_ratio)
         val_loss, val_r2, _ = train_epoch(model, val_loader, optimizer=None, criterion=criterion,
-                                       gene_expression=gene_expression, training=False, masking_ratio=masking_ratio)
+                                          gene_expression=gene_expression, training=False, masking_ratio=masking_ratio)
 
         # records losses
         train_losses.append(train_loss)
@@ -119,6 +119,8 @@ class TrainResults:
         self.best_epoch = best_epoch
         self.epochs_trained = epochs_trained
         self.total_training_time = total_training_time
+        self.masking_ratio = None
+        self.radius = None
 
     def __str__(self):
         return f"Best val loss: {self.val_losses[self.best_epoch]:.4f}, best r2 val: {self.val_r2s[self.best_epoch]:.4f}, at epoch {self.best_epoch + 1}"
@@ -129,14 +131,16 @@ class TrainResults:
         # Plot the first set of data
         axes[0].plot(self.train_losses, label='train loss')
         axes[0].plot(self.val_losses, label='val loss')
-        axes[0].title.set_text("Losses, best val loss: {:.4f}, at epoch {}".format(self.val_losses[self.best_epoch] , self.best_epoch + 1))
+        axes[0].title.set_text(
+            "Losses, best val loss: {:.4f}, at epoch {}".format(self.val_losses[self.best_epoch], self.best_epoch + 1))
 
         axes[0].legend()
 
         # Plot the second set of data
         axes[1].plot(self.train_r2s, label='train r2')
         axes[1].plot(self.val_r2s, label='val r2')
-        axes[1].title.set_text("R2 scores, best val r2: {:.4f}, at epoch {}".format(self.val_r2s[self.best_epoch] , self.best_epoch + 1))
+        axes[1].title.set_text(
+            "R2 scores, best val r2: {:.4f}, at epoch {}".format(self.val_r2s[self.best_epoch], self.best_epoch + 1))
         axes[1].legend()
 
         # Return the figure object containing the subplots
@@ -151,3 +155,9 @@ class TrainResults:
         plt.plot(self.val_r2s, label='val r2')
         plt.legend()
         plt.show()
+
+    def to_pandas(self):
+        return pd.DataFrame({'best_epoch': self.best_epoch + 1, 'epochs_trained': self.epochs_trained,
+                             'total_training_time': self.total_training_time,
+                             'best_val_loss': self.val_losses[self.best_epoch],
+                             'best_val_r2': self.val_r2s[self.best_epoch]}, index=[0])
