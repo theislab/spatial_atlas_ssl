@@ -38,11 +38,12 @@ rule pretraining:
 rule combine_results:
     input:
         files = expand("snake_output/pretrain_models/summary_{k_hop}_{radius}_{masking_mode}_{pretrained}.csv",k_hop=config[
-    'k_hop'],radius=config['radius'],masking_mode=config['masking_mode'],pretrained=config['pretrain_structure']),
+    'k_hop'],radius=config['radius'],masking_mode=config['masking_mode'],pretrained=config['pretrain_structure'])
+    params:
         folder = "snake_output/pretrain_models"
     output:
         "snake_output/pretrain_models/summary.pdf"
     shell:
         """
-        python scripts/combine_results.py {input.folder} {output}
+        python scripts/combine_results.py {params.folder} {output}
         """
