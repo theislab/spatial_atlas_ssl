@@ -1,5 +1,7 @@
 # we calculate splice variants for all genes for each cell (each cell gets different variants
 rule create_dataset:
+    resources:
+        mem_mb=2000
     input:
         adata = config['adata']
     params:
