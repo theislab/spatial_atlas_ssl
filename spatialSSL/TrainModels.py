@@ -9,8 +9,8 @@ class GCN_classifier(nn.Module):
         self.conv2 = GCNConv(hidden_channels, hidden_channels)
         self.lin1 = nn.Linear(hidden_channels, num_classes)
 
-    def forward(self, x: Tensor, edge_index: Tensor) -> Tensor:
-        x = self.conv1(x, edge_index).relu()
-        x = self.conv2(x, edge_index).relu()
+    def forward(self, x: Tensor, edge_index: Tensor, edge_weights : Tensor = None) -> Tensor:
+        x = self.preconv1(x, edge_index, edge_weights).relu()
+        x = self.conv2(x, edge_index, edge_weights).relu()
         x = self.lin1(x).softmax(dim=1)
         return x

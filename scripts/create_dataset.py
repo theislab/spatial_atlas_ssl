@@ -9,7 +9,6 @@ import spatialSSL
 args = sys.argv
 
 file_path = args[1]
-# "/data/ceph/hdd/project/node_05/gene2bird/groupB/genomic/atlas_brain_638850_CCF.h5ad"
 
 # Create the dataloader
 dataset_constructor = spatialSSL.Dataloader.EgoNetDatasetConstructor(file_path=file_path, image_col="section",
@@ -22,12 +21,19 @@ dataset_constructor.load_data()
 # Construct
 dataset = dataset_constructor.construct_graph(show_progress_bar=True)
 
-# Split the dataset into train, validation, and test sets
+# Split the dataset into train, validation, and test sets, split test for downstream
 train_data, val_data, test_data = random_split(dataset, (0.8,0.1,0.1))
+# print("sizes of pre: ", len(train_data), len(val_data), len(test_data))
 
-# Save the data
+down_train, down_val, down_test = random_split(test_data, (0.8,0.1,0.1))
+# print("sizes of down: ", len(down_train), len(down_val), len(down_test))
+
+# Save pretrain data
 torch.save(train_data, args[4] + "train.pt")
 torch.save(val_data, args[4] + "val.pt")
 torch.save(test_data, args[4] + "test.pt")
 
-# "/data/ceph/hdd/project/node_05/gene2bird/groupB/spatial_atlas_ssl/datasets/full_dataset_radius_20_khop_3.pt")
+# Save the downstream data
+torch.save(down_train, args[5] + "train.pt")
+torch.save(down_val, args[5] + "val.pt")
+torch.save(down_test, args[5] + "test.pt")

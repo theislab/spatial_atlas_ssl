@@ -107,11 +107,12 @@ def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100,
 
     print(f"Best val loss: {best_val_loss:.4f}, at epoch {best_epoch + 1}")
     return TrainResults(train_losses, train_r2_scores, val_losses, val_r2_scores, best_epoch, epoch + 1,
-                        time.time() - start_time)
+                        time.time() - start_time, "R2_Score")
 
 
 class TrainResults:
-    def __init__(self, train_losses, train_r2s, val_losses, val_r2s, best_epoch, epochs_trained, total_training_time):
+    def __init__(self, train_losses, train_r2s, val_losses, val_r2s, best_epoch, epochs_trained, total_training_time, metric_name):
+        self.metric_name = metric_name
         self.train_losses = train_losses
         self.train_r2s = train_r2s
         self.val_losses = val_losses
@@ -129,35 +130,26 @@ class TrainResults:
         fig, axes = plt.subplots(2, 1, figsize=(10, 8))  # Create a subplot with 2 rows
 
         # Plot the first set of data
-        axes[0].plot(self.train_losses, label='train loss')
-        axes[0].plot(self.val_losses, label='val loss')
+        axes[0].plot(self.train_losses, label='Training Loss')
+        axes[0].plot(self.val_losses, label='Validation Loss')
         axes[0].title.set_text(
-            "Losses, best val loss: {:.4f}, at epoch {}".format(self.val_losses[self.best_epoch], self.best_epoch + 1))
+            "Losses, Best Validation Loss: {:.4f}, at Epoch {}".format(self.val_losses[self.best_epoch], self.best_epoch + 1))
 
         axes[0].legend()
 
         # Plot the second set of data
-        axes[1].plot(self.train_r2s, label='train r2')
-        axes[1].plot(self.val_r2s, label='val r2')
+        axes[1].plot(self.train_r2s, label=f'Training {self.metric_name}')
+        axes[1].plot(self.val_r2s, label=f'Validation {self.metric_name}')
         axes[1].title.set_text(
-            "R2 scores, best val r2: {:.4f}, at epoch {}".format(self.val_r2s[self.best_epoch], self.best_epoch + 1))
+            f"{self.metric_name}, Best Validation {self.metric_name}: {self.val_r2s[self.best_epoch]:.4f}, at epoch {self.best_epoch + 1}")  #.format(self.val_r2s[self.best_epoch], self.best_epoch + 1))
         axes[1].legend()
 
         # Return the figure object containing the subplots
         return fig
 
-        plt.plot(self.train_losses, label='train loss')
-        plt.plot(self.val_losses, label='val loss')
-        plt.legend()
-        plt.show()
-
-        plt.plot(self.train_r2s, label='train r2')
-        plt.plot(self.val_r2s, label='val r2')
-        plt.legend()
-        plt.show()
 
     def to_pandas(self):
         return pd.DataFrame({'best_epoch': self.best_epoch + 1, 'epochs_trained': self.epochs_trained,
                              'total_training_time': self.total_training_time,
                              'best_val_loss': self.val_losses[self.best_epoch],
-                             'best_val_r2': self.val_r2s[self.best_epoch]}, index=[0])
+                             f'best_val_{self.metric_name}': self.val_r2s[self.best_epoch]}, index=[0])

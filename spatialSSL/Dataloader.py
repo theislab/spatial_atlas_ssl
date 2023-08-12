@@ -123,6 +123,7 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
                 new_index = torch.nonzero(subset == idx - offset).squeeze()
                 mask = torch.zeros(subset.shape[0], dtype=torch.bool)
                 mask[new_index] = True
+
                 data = Data(x=subset + offset, y=idx, edge_index=edge_index, mask=mask, edge_weights=graph_info[2][edge_mask])#, celltype=self.adata.obs[self.label_col][idx])
                 subgraphs.append(data)
             except Exception as e:

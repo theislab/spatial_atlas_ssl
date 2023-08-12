@@ -2,10 +2,10 @@ rules: "rules/"
 adata: "example_files/img_1199670929.h5ad"
 k_hop:
   - 2
-  - 3
+  #- 3
 radius:
   - 20
-  - 30
+  #- 30
 
 
 
