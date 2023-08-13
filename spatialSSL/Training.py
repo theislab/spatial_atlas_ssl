@@ -28,7 +28,7 @@ def train_epoch(model, loader, optimizer, criterion, gene_expression=None, train
                 device).long()
 
             # Forward + backward + optimize
-            outputs = model(input, data.edge_index)
+            outputs = model(input, data.edge_index.to(device).long(), data.edge_weights.to(device).float())
             loss = criterion(outputs, labels)
 
             # Print statistics

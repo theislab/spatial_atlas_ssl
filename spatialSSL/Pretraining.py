@@ -124,16 +124,23 @@ class TrainResults:
         self.radius = None
 
     def __str__(self):
-        return f"Best val loss: {self.val_losses[self.best_epoch]:.4f}, best r2 val: {self.val_r2s[self.best_epoch]:.4f}, at epoch {self.best_epoch + 1}"
+        return f"Best val loss: {self.val_losses[self.best_epoch]:.4f}, best r2 val: {self.val_r2s[self.best_epoch]:.4f}, at epoch {self.best_epoch}"
 
     def plot(self):
+
+        # TODO: add vertical line at best epoch
+
         fig, axes = plt.subplots(2, 1, figsize=(10, 8))  # Create a subplot with 2 rows
 
         # Plot the first set of data
         axes[0].plot(self.train_losses, label='Training Loss')
         axes[0].plot(self.val_losses, label='Validation Loss')
         axes[0].title.set_text(
-            "Losses, Best Validation Loss: {:.4f}, at Epoch {}".format(self.val_losses[self.best_epoch], self.best_epoch + 1))
+            "Losses, Best Validation Loss: {:.4f}, at Epoch {}".format(self.val_losses[self.best_epoch], self.best_epoch))
+
+        # add vertical line at best epoch, label it
+        axes[0].axvline(x=self.best_epoch, color='r', linestyle='--', label='Best Epoch')
+        #axes[0].text(self.best_epoch, 0.5, 'Best Epoch', rotation=90)
 
         axes[0].legend()
 
@@ -141,7 +148,12 @@ class TrainResults:
         axes[1].plot(self.train_r2s, label=f'Training {self.metric_name}')
         axes[1].plot(self.val_r2s, label=f'Validation {self.metric_name}')
         axes[1].title.set_text(
-            f"{self.metric_name}, Best Validation {self.metric_name}: {self.val_r2s[self.best_epoch]:.4f}, at epoch {self.best_epoch + 1}")  #.format(self.val_r2s[self.best_epoch], self.best_epoch + 1))
+            f"{self.metric_name}, Best Validation {self.metric_name}: {self.val_r2s[self.best_epoch]:.4f}, at epoch {self.best_epoch}")  #.format(self.val_r2s[self.best_epoch], self.best_epoch + 1))
+
+        # add vertical line at best epoch, label it
+        axes[1].axvline(x=self.best_epoch, color='r', linestyle='--', label='Best Epoch')
+        #axes[1].text(self.best_epoch, 0.5, 'Best Epoch', rotation=90)
+
         axes[1].legend()
 
         # Return the figure object containing the subplots

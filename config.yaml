@@ -9,18 +9,18 @@ radius:
 
 
 
-pretrain_epochs: 100
-pretrain_lr: 0.005
+pretrain_epochs: 50
+pretrain_lr: 0.002
 pretrain_batch_size: 64
 pretrain_patience: 10
 
-train_epochs: 100
-train_lr: 0.005
+train_epochs: 50
+train_lr: 0.002
 train_batch_size: 64
 train_patience: 10
 
 masking_mode:
-    #- 0.1
+    - 0.1
     #- 0.3
     - 0.5
     #- 0.7
@@ -29,14 +29,3 @@ masking_mode:
 pretrain_structure:
     - "GCN"
 
-
-
-
-
-#input_folder: "input_files"
-#gtf: "Homo_sapiens.GRCh38.99.21.gtf"
-#fasta: "21.fa"
-#src_AS : "src/"
-#outdir : "AS_output/"
-#number_of_mixes: 100  #at least 5 are recommended
-#seq_depth : 20000
