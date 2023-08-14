@@ -22,20 +22,23 @@ def train_epoch(model, loader, optimizer, criterion, r2_metric, mse_metric, gene
 
             if gene_expression is None:
 
-                target = data.x.float().to_dense()[data.cell_mask]
+                cell_mask = torch.zeros(data.x.shape[0], dtype=torch.bool)
+                cell_mask[data.cell_mask_index] = True
+
+                target = data.x.float().to_dense()[cell_mask]
                 # print(data.x.float().to_dense().shape)
 
-                input = data.x.float().to_dense() * (~data.cell_mask).view(-1, 1)
+                input = data.x.float().to_dense() * (~cell_mask).view(-1, 1)
                 # print(input.shape)
 
                 outputs = model(input.to(device), data.edge_index.long().to(device))
                 # print(outputs)
-                loss = criterion(outputs[data.cell_mask], target)
+                loss = criterion(outputs[cell_mask], target)
                 # loss = (outputs[data.mask] - target).coalesce().values().pow(2).mean()
                 # evaluate metrics
 
-                r2_metric.update(outputs[data.cell_mask].cpu(), target.cpu())
-                mse_metric.update(outputs[data.cell_mask].cpu(), target.cpu())
+                r2_metric.update(outputs[cell_mask].cpu(), target.cpu())
+                mse_metric.update(outputs[cell_mask].cpu(), target.cpu())
 
             else:
                 input = torch.tensor(gene_expression[data.x].toarray(), dtype=torch.double).to(device)

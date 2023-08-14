@@ -216,7 +216,7 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
     def construct_graph(self):
         # Constructing graph from coordinates using scanpy's spatial_neighbors function
 
-        cell_mask, cell_mask_index = None, None
+        cell_mask_index = None, None
 
         images = np.unique(self.adata.obs[self.image_col])
 
@@ -247,7 +247,7 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
             # select masking technique and return graph index for masking
 
             if self.mask_method == 'random':
-                cell_mask, cell_mask_index = self.masking_random(num_cells, self.random_mask_percentage)
+                cell_mask_index = self.masking_random(num_cells, self.random_mask_percentage)
 
             elif self.mask_method == 'cell_type':
 
@@ -256,14 +256,14 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
                     print(f"Cell type {self.cell_type_to_mask} not found in image {image}. Skipping this image.")
                     continue
 
-                cell_mask, cell_mask_index = self.masking_by_cell_type(num_cells, cell_type,
-                                                                       cell_type_to_mask=self.cell_type_to_mask)
+                cell_mask_index = self.masking_by_cell_type(num_cells, cell_type,
+                                                      cell_type_to_mask=self.cell_type_to_mask)
 
             elif self.mask_method == 'niche':
-                cell_mask, cell_mask_index = self.masking_by_niche(num_cells,
-                                                                   edge_index,
-                                                                   self.niche_to_mask
-                                                                   )
+                cell_mask_index = self.masking_by_niche(num_cells,
+                                                  edge_index,
+                                                  self.niche_to_mask
+                                                  )
 
             # gene_expression_coo = gene_expression.tocoo()
             # gene_expression_masked_coo = gene_expression_masked.tocoo()
@@ -276,8 +276,8 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
                 size=gene_expression_coo.shape,
                 dtype=torch.double)
 
-            cell_type = torch.tensor(cell_type)
-            cell_mask_index = torch.tensor(cell_mask_index)
+            cell_type = torch.tensor(cell_type, dtype=torch.int16)
+
             distances = sub_adata.obsp['adjacency_matrix_distances']
 
             # Get the sparse COO representation of the weights
@@ -289,9 +289,9 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
                 size=weights_coo.shape,
                 dtype=torch.double)
 
+            cell_mask_index = torch.tensor(cell_mask_index, dtype=torch.long)
             # Include the edge weights in the Data object
             graph = Data(x=gene_expression, edge_index=edge_index, edge_attr=edge_weights_tensor,
-                         cell_mask=cell_mask,
                          cell_mask_index=cell_mask_index,
                          cell_type=cell_type, image=image,
                          num_nodes=gene_expression.shape[0])
@@ -303,29 +303,25 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
     def masking_random(num_cell, random_to_mask=0.1):
         # create a mask of size equal to the number of cells
 
-        # Mask is ture for cells that are masked
-        cell_mask = torch.zeros(num_cell, dtype=torch.bool)
-
         # randomly select some percentage of cells to mask
         num_cells_to_mask = int(num_cell * random_to_mask)
         cell_mask_index = np.random.choice(num_cell, size=num_cells_to_mask, replace=False)
-        cell_mask[cell_mask_index] = True
 
-        return cell_mask, cell_mask_index
+        return cell_mask_index
 
     @staticmethod
     def masking_by_cell_type(num_cell, cell_type, cell_type_to_mask):
 
         # Create a mask of size equal to the number of a cell type
         # Mask is ture for cells that are masked
-        cell_mask = torch.zeros(num_cell, dtype=torch.bool)
+        # cell_mask = torch.zeros(num_cell, dtype=torch.int8)
 
         # get the cells of the cell type to mask
         cell_mask_index = np.where(cell_type == cell_type_to_mask)[0]
 
-        cell_mask[cell_mask_index] = True
+        # cell_mask[cell_mask_index] = 1
 
-        return cell_mask, cell_mask_index
+        return cell_mask_index
 
     @staticmethod
     def masking_by_niche(num_cell, edge_index, niche_to_mask=0.05, extend=1):
@@ -352,7 +348,8 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
 
         # Create a mask of size equal to the number of a cell type
         # Mask is ture for cells that are not masked
-        cell_mask = torch.zeros(num_cell, dtype=torch.bool)
-        cell_mask[cell_mask_index] = True
+        #cell_mask = torch.zeros(num_cell, dtype=torch.bool)
+        #cell_mask[cell_mask_index] = 1
 
-        return cell_mask, cell_mask_index
+
+        return cell_mask_index
