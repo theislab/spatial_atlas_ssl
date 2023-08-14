@@ -1,5 +1,9 @@
 rules: "rules/"
-adata: "example_files/img_1199670929.h5ad"
+adata_folder: "example_files/"
+adata_name: "img_1199670929.h5ad"
+
+output_folder: "snake_output/"
+
 k_hop:
   - 2
   #- 3
@@ -9,12 +13,12 @@ radius:
 
 
 
-pretrain_epochs: 50
+pretrain_epochs: 10
 pretrain_lr: 0.002
 pretrain_batch_size: 64
 pretrain_patience: 10
 
-train_epochs: 50
+train_epochs: 10
 train_lr: 0.002
 train_batch_size: 64
 train_patience: 10
