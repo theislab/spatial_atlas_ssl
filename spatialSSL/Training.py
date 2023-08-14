@@ -33,7 +33,7 @@ def train_epoch(model, loader, optimizer, criterion, r2_metric, mse_metric, gene
 
                 outputs = model(input.to(device), data.edge_index.long().to(device))
                 # print(outputs)
-                loss = criterion(outputs[cell_mask], target)
+                loss = criterion(outputs[cell_mask], target.to(device))
                 # loss = (outputs[data.mask] - target).coalesce().values().pow(2).mean()
                 # evaluate metrics
 

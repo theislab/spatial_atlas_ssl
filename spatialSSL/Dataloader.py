@@ -12,7 +12,13 @@ from sklearn.preprocessing import LabelEncoder
 from torch_geometric.data import Data
 from torch_geometric.utils import from_scipy_sparse_matrix, k_hop_subgraph
 from tqdm.auto import tqdm
-
+import psutil
+import os
+def print_memory_usage():
+    process = psutil.Process(os.getpid())
+    print(f"CPU Memory: {process.memory_info().rss / 1024 ** 2} MB")
+    if torch.cuda.is_available():
+        print(f"GPU Memory: {torch.cuda.memory_allocated() / 1024 ** 2} MB")
 
 class SpatialDatasetConstructor(ABC):
     def __init__(self, file_path: str, image_col: str, label_col: str, include_label: bool, radius: float,
@@ -215,7 +221,8 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
 
     def construct_graph(self):
         # Constructing graph from coordinates using scanpy's spatial_neighbors function
-
+        print("construct_graph")
+        print_memory_usage()
         cell_mask_index = None, None
 
         images = np.unique(self.adata.obs[self.image_col])
@@ -226,11 +233,15 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
 
         self.encode_book = dict(zip(encode_cell_type.classes_, encode_cell_type.transform(encode_cell_type.classes_)))
 
+
         graphs = []
         for image in tqdm(images, desc="Constructing Graphs"):
 
+            print(f"construct_graph {image}")
+            print_memory_usage()
+
             # subset adata to only include cells from the current image
-            sub_adata = self.adata[self.adata.obs[self.image_col] == image].copy()
+            sub_adata = self.adata[self.adata.obs[self.image_col] == image]
 
             # calculate graph using neighbors function
             sq.gr.spatial_neighbors(adata=sub_adata, radius=self.radius, key_added="adjacency_matrix",
@@ -240,9 +251,14 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
 
             cell_type = sub_adata.obs["cell_type_encoded"].values
 
+
+
             # assuming gene expression is stored in sub_adata.X
             gene_expression_coo = sub_adata.X.tocoo()
             num_cells = gene_expression_coo.shape[0]
+
+            print(f"Before masking {image}")
+            print_memory_usage()
 
             # select masking technique and return graph index for masking
 
@@ -270,18 +286,27 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
 
             # convert to pytorch tensor
             # convert to tensors
+
+            print(f"After masking {image}")
+            print_memory_usage()
+
             gene_expression = torch.sparse_coo_tensor(
                 indices=np.vstack((gene_expression_coo.row, gene_expression_coo.col)),
                 values=gene_expression_coo.data,
                 size=gene_expression_coo.shape,
                 dtype=torch.double)
 
-            cell_type = torch.tensor(cell_type, dtype=torch.int16)
+            cell_type = torch.tensor(cell_type)
 
-            distances = sub_adata.obsp['adjacency_matrix_distances']
+            print(f"Before weights_coo {image}")
+            print_memory_usage()
 
+            weights_coo = sub_adata.obsp['adjacency_matrix_distances'].tocoo()
+
+            print(f"After weights_coo {image}")
+            print_memory_usage()
             # Get the sparse COO representation of the weights
-            weights_coo = distances.tocoo()
+            #weights_coo = distances.tocoo()
 
             edge_weights_tensor = torch.sparse_coo_tensor(
                 indices=np.vstack((weights_coo.row, weights_coo.col)),
@@ -290,12 +315,14 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
                 dtype=torch.double)
 
             cell_mask_index = torch.tensor(cell_mask_index, dtype=torch.long)
+
             # Include the edge weights in the Data object
-            graph = Data(x=gene_expression, edge_index=edge_index, edge_attr=edge_weights_tensor,
-                         cell_mask_index=cell_mask_index,
-                         cell_type=cell_type, image=image,
-                         num_nodes=gene_expression.shape[0])
-            graphs.append(graph)
+            graphs.append(
+                Data(x=gene_expression, edge_index=edge_index, edge_attr=edge_weights_tensor,
+                     cell_mask_index=cell_mask_index,
+                     cell_type=cell_type, image=image,
+                     num_nodes=gene_expression.shape[0], encode_book=self.encode_book)
+            )
 
         return graphs
 
