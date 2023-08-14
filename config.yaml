@@ -13,7 +13,7 @@ radius:
 
 
 
-pretrain_epochs: 10
+pretrain_epochs: 50
 pretrain_lr: 0.002
 pretrain_batch_size: 64
 pretrain_patience: 10
