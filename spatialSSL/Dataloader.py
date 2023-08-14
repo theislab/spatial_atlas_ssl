@@ -221,8 +221,8 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
 
     def construct_graph(self):
         # Constructing graph from coordinates using scanpy's spatial_neighbors function
-        print("construct_graph")
-        print_memory_usage()
+        #print("construct_graph")
+        #print_memory_usage()
         cell_mask_index = None, None
 
         images = np.unique(self.adata.obs[self.image_col])
@@ -237,8 +237,8 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
         graphs = []
         for image in tqdm(images, desc="Constructing Graphs"):
 
-            print(f"construct_graph {image}")
-            print_memory_usage()
+            #print(f"construct_graph {image}")
+            #print_memory_usage()
 
             # subset adata to only include cells from the current image
             sub_adata = self.adata[self.adata.obs[self.image_col] == image]
@@ -257,8 +257,8 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
             gene_expression_coo = sub_adata.X.tocoo()
             num_cells = gene_expression_coo.shape[0]
 
-            print(f"Before masking {image}")
-            print_memory_usage()
+            #print(f"Before masking {image}")
+            #print_memory_usage()
 
             # select masking technique and return graph index for masking
 
@@ -287,8 +287,8 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
             # convert to pytorch tensor
             # convert to tensors
 
-            print(f"After masking {image}")
-            print_memory_usage()
+            #print(f"After masking {image}")
+            #print_memory_usage()
 
             gene_expression = torch.sparse_coo_tensor(
                 indices=np.vstack((gene_expression_coo.row, gene_expression_coo.col)),
@@ -298,13 +298,13 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
 
             cell_type = torch.tensor(cell_type)
 
-            print(f"Before weights_coo {image}")
-            print_memory_usage()
+            #print(f"Before weights_coo {image}")
+            #print_memory_usage()
 
             weights_coo = sub_adata.obsp['adjacency_matrix_distances'].tocoo()
 
-            print(f"After weights_coo {image}")
-            print_memory_usage()
+            #print(f"After weights_coo {image}")
+            #print_memory_usage()
             # Get the sparse COO representation of the weights
             #weights_coo = distances.tocoo()
 
