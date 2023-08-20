@@ -23,7 +23,9 @@ patience = int(args[5])
 batch_size = int(args[6])
 learning_rate = float(args[7])
 num_epochs = int(args[8])
-adata = sc.read(args[9])
+bottle_neck = int(args[9])
+adata = sc.read(args[10])
+
 
 obs_df = adata.obs.copy()
 sorted_obs_df = obs_df.sort_values(by="section")
@@ -33,10 +35,10 @@ train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
 
 
-model_type = "GCN_1"
+model_type = "GCN"
 
-if model_type == "GCN_1":
-    model = spatialSSL.PretrainModels.GCN_1(in_channels=550, hidden_channels=128, out_channels=550)
+if model_type == "GCN":
+    model = spatialSSL.PretrainModels.GCN_1(in_channels=adata.n_vars, hidden_channels=bottle_neck)
 
 
 criterion = torch.nn.MSELoss()
@@ -47,9 +49,9 @@ training_summary = spatialSSL.Pretraining.train(model, train_loader, val_loader,
 
 
 # Save training summary to pdf
-with PdfPages(args[10]) as pdf:
+with PdfPages(args[11]) as pdf:
     fig = training_summary.plot()
     pdf.savefig(fig)
 
 # save training summary to csv
-training_summary.to_pandas().to_csv(args[11], index=False)
+training_summary.to_pandas().to_csv(args[12], index=False)

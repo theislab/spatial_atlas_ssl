@@ -76,7 +76,7 @@ def train(model, train_loader, val_loader, optimizer, criterion, num_epochs=100,
     start_time = time.time()
 
     # training loop
-    for epoch in tqdm(range(num_epochs), desc='Training model'):
+    for epoch in tqdm(range(num_epochs), desc='Pre-Training model'):
         epoch_start_time = time.time()
         train_loss, train_r2, _ = train_epoch(model, train_loader, optimizer, criterion=criterion,
                                               gene_expression=gene_expression, training=True,

@@ -11,7 +11,7 @@ from spatialSSL.Pretraining import TrainResults
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-def train_epoch(model, loader, optimizer, criterion, gene_expression=None, training=True, output=False):
+def train_epoch(model, loader, optimizer, criterion, gene_expression=None, training=True, output=False, class_label="class_label"):
     model.train(training)
     total_loss = 0
 
@@ -24,7 +24,7 @@ def train_epoch(model, loader, optimizer, criterion, gene_expression=None, train
                 optimizer.zero_grad()
 
             input = torch.tensor(gene_expression.X[data.x].toarray(), dtype=torch.double).to(device).float()
-            labels = torch.tensor(gene_expression[data.x.numpy()].obs.class_label.cat.codes.values).to(
+            labels = torch.tensor(gene_expression[data.x.numpy()].obs[class_label].cat.codes.values).to(
                 device).long()
 
             # Forward + backward + optimize
