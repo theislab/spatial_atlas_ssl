@@ -3,7 +3,7 @@ import torch
 from torch import nn, optim
 import time
 from torcheval.metrics import MeanSquaredError, R2Score
-
+from torcheval.metrics import MulticlassAccuracy, MulticlassAUPRC
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  # "cpu"
 
 
@@ -57,8 +57,6 @@ def train_epoch(model, loader, optimizer, criterion, r2_metric, mse_metric, gene
 
                 r2_metric.update(outputs[cell_mask].detach().cpu(), target.detach().cpu())
                 mse_metric.update(outputs[cell_mask].detach().cpu(), target.detach().cpu())
-
-
 
             else:
                 input = torch.tensor(gene_expression[data.x].toarray(), dtype=torch.double).to(device)
@@ -144,3 +142,72 @@ def train(model, train_loader, val_loader, criterion, num_epochs=100, patience=5
             f"Epoch {epoch + 1}/{num_epochs}, train loss: {train_loss:.4f}, train r2: {train_r2:.4f}, train mse: {train_mse:.4f},  val loss: {val_loss:.4f}, val r2: {val_r2:.4f}, val mse: {val_mse:.4f}, Time: {time.time() - start_time:.4f}s")
 
     print(f"Best val loss: {best_val_loss:.4f}, at epoch {best_epoch + 1}")
+
+
+# write a downstream task training function for cell type classificaion
+
+def train_classification(model, train_loader, val_loader, criterion,num_classes,num_epochs=100, patience=5, optimizer=None, model_path=None):
+    accuracy_metric_train = MulticlassAccuracy(num_classes=num_classes)
+    auprc_metric_train = MulticlassAUPRC(num_classes=num_classes)
+    accuracy_metric_val = MulticlassAccuracy(num_classes=num_classes)
+    auprc_metric_val = MulticlassAccuracy(num_classes=num_classes)
+
+    #criterion = BCEWithLogitsLoss() # Suitable for multi-label classification
+
+    best_val_loss = float('inf')
+    best_epoch = 0
+    epochs_no_improve = 0
+
+    for epoch in range(num_epochs):
+        start_time = time.time()
+
+        train_loss, train_accuracy, train_auprc = train_epoch_classification(model, train_loader, optimizer, criterion, accuracy_metric_train, auprc_metric_train, training=True)
+        val_loss, val_accuracy, val_auprc = train_epoch_classification(model, val_loader, optimizer, criterion, accuracy_metric_val, auprc_metric_val, training=False)
+
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            best_epoch = epoch
+            epochs_no_improve = 0
+            if model_path is not None:
+                torch.save(model.state_dict(), model_path)
+        else:
+            epochs_no_improve += 1
+            if epochs_no_improve == patience:
+                print('Early stopping!')
+                break
+
+        print(
+            f"Epoch {epoch + 1}/{num_epochs}, train loss: {train_loss:.4f}, train accuracy: {train_accuracy:.4f}, train auprc: {train_auprc:.4f}, val loss: {val_loss:.4f}, val accuracy: {val_accuracy:.4f}, val auprc: {val_auprc:.4f}, Time: {time.time() - start_time:.4f}s")
+
+    print(f"Best val loss: {best_val_loss:.4f}, at epoch {best_epoch + 1}")
+
+def train_epoch_classification(model, loader, optimizer, criterion, accuracy_metric, auprc_metric, training=True):
+    if training:
+        model.train()
+    else:
+        model.eval()
+
+    total_loss = 0
+
+    with torch.set_grad_enabled(training):
+        for data in loader:
+            if training:
+                optimizer.zero_grad()
+
+            input = data.x.to(device)
+            target = data.cell_type[data.cell_mask_index].to(device) # Assuming y contains the multi-label ground truth
+            outputs = model(input.float(), data.edge_index.to(device).long())
+            print(outputs[data.cell_mask_index])
+            print(target)
+            loss = criterion(outputs[data.cell_mask_index], target)
+
+            if training:
+                loss.backward()
+                optimizer.step()
+
+            accuracy_metric.update(outputs[data.cell_mask_index].detach().cpu(), target.detach().cpu())
+            auprc_metric.update(outputs[data.cell_mask_index].detach().cpu(), target.detach().cpu())
+
+            total_loss += loss.item() * data.num_graphs
+
+    return total_loss / len(loader.dataset), accuracy_metric.compute(), auprc_metric.compute()
