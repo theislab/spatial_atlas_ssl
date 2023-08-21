@@ -17,8 +17,8 @@ rule create_dataset:
         down_valset=config['output_folder'] + config['adata_name'] + "/train_datasets/dataset_{k_hop}_{radius}_val.pt",
         down_testset=config['output_folder'] + config[
             'adata_name'] + "/train_datasets/dataset_{k_hop}_{radius}_test.pt",
-    jobname:
-        "create_dataset"
+    resources:
+        jobname="create_dataset"
     shell:
         """
         python scripts/create_dataset.py {input.adata} {wildcards.radius} {wildcards.k_hop} {params.pre_basename} {params.train_basename}
