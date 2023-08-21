@@ -227,11 +227,17 @@ class FullImageDatasetConstructor(SpatialDatasetConstructor):
 
         images = np.unique(self.adata.obs[self.image_col])
 
-        encode_cell_type = LabelEncoder()
-        encode_cell_type.fit(self.adata.obs[self.label_col].values)
-        self.adata.obs['cell_type_encoded'] = encode_cell_type.transform(self.adata.obs[self.label_col].values)
+        # encode cell type
+        if self.encode_book is None:
+            encode_cell_type = LabelEncoder()
+            encode_cell_type.fit(self.adata.obs[self.label_col].values)
+            self.adata.obs['cell_type_encoded'] = encode_cell_type.transform(self.adata.obs[self.label_col].values)
+            self.encode_book = dict(zip(encode_cell_type.classes_, encode_cell_type.transform(encode_cell_type.classes_)))
+        else:
+            # if cell type is already encoded, use the encode book
+            self.adata.obs['cell_type_encoded'] = self.adata.obs[self.label_col].map(self.encode_book)
+            
 
-        self.encode_book = dict(zip(encode_cell_type.classes_, encode_cell_type.transform(encode_cell_type.classes_)))
 
 
         graphs = []
