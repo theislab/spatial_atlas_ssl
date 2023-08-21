@@ -13,12 +13,12 @@ radius:
 
 
 
-pretrain_epochs: 5
+pretrain_epochs: 50
 pretrain_lr: 0.002
 pretrain_batch_size: 64
 pretrain_patience: 10
 
-train_epochs: 5
+train_epochs: 50
 train_lr: 0.002
 train_batch_size: 64
 train_patience: 10
@@ -29,20 +29,15 @@ bottleneck:
   - 64
 
 masking_mode:
-    #- 0.1
-    #- 0.3
-    - 0.5
-    #- 0.7
-    - 0.9
+  #- 0.5
+  - 0.9
 
 pretrain_structure:
-    - "GCN"
-   # - "GAT"
+  - "GCN"
+  - "GAT"
 
-hidden_layers:
-    - 1
-    - 2
-    - 3
-    - 4
-    - 5
+
+num_hidden_layers:
+  - 2
+  - 4
 
