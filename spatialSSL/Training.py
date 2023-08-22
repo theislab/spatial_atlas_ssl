@@ -4,6 +4,7 @@ from torch import nn, optim
 import time
 from torcheval.metrics import MeanSquaredError, R2Score
 from torcheval.metrics import MulticlassAccuracy, MulticlassAUPRC
+from sklearn.metrics import accuracy_score
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  # "cpu"
 
 
@@ -147,9 +148,9 @@ def train(model, train_loader, val_loader, criterion, num_epochs=100, patience=5
 # write a downstream task training function for cell type classificaion
 
 def train_classification(model, train_loader, val_loader, criterion,num_classes,num_epochs=100, patience=5, optimizer=None, model_path=None):
-    accuracy_metric_train = MulticlassAccuracy(num_classes=num_classes)
+    accuracy_metric_train = MulticlassAccuracy()
     auprc_metric_train = MulticlassAUPRC(num_classes=num_classes)
-    accuracy_metric_val = MulticlassAccuracy(num_classes=num_classes)
+    accuracy_metric_val = MulticlassAccuracy()
     auprc_metric_val = MulticlassAccuracy(num_classes=num_classes)
 
     #criterion = BCEWithLogitsLoss() # Suitable for multi-label classification
@@ -197,17 +198,50 @@ def train_epoch_classification(model, loader, optimizer, criterion, accuracy_met
             input = data.x.to(device)
             target = data.cell_type[data.cell_mask_index].to(device) # Assuming y contains the multi-label ground truth
             outputs = model(input.float(), data.edge_index.to(device).long())
-            print(outputs[data.cell_mask_index])
-            print(target)
-            loss = criterion(outputs[data.cell_mask_index], target)
+            outputs_selected = outputs[data.cell_mask_index] # Selecting the relevant outputs
+            loss = criterion(outputs_selected, target)
 
             if training:
                 loss.backward()
                 optimizer.step()
 
-            accuracy_metric.update(outputs[data.cell_mask_index].detach().cpu(), target.detach().cpu())
-            auprc_metric.update(outputs[data.cell_mask_index].detach().cpu(), target.detach().cpu())
+            accuracy_metric.update(outputs_selected.detach().cpu(), target.detach().cpu())
+            auprc_metric.update(outputs_selected.detach().cpu(), target.detach().cpu())
 
             total_loss += loss.item() * data.num_graphs
 
     return total_loss / len(loader.dataset), accuracy_metric.compute(), auprc_metric.compute()
+
+def test_classification(model, test_loader, criterion, num_classes):
+    model.eval()
+    accuracy_metric_test = MulticlassAccuracy()
+    auprc_metric_test = MulticlassAUPRC(num_classes=num_classes)
+    total_loss = 0
+    cell_type_accuracies = np.zeros(num_classes)
+
+    with torch.no_grad():
+        for data in test_loader:
+            input = data.x.to(device)
+            target = data.cell_type[data.cell_mask_index].to(device)
+            outputs = model(input.float(), data.edge_index.to(device).long())
+            outputs_selected = outputs[data.cell_mask_index]
+            loss = criterion(outputs_selected, target)
+
+            accuracy_metric_test.update(outputs_selected.detach().cpu(), target.detach().cpu())
+            auprc_metric_test.update(outputs_selected.detach().cpu(), target.detach().cpu())
+
+            total_loss += loss.item() * data.num_graphs
+
+            # Compute accuracy for each cell type
+            predictions = torch.argmax(outputs_selected, dim=1)
+            for i in range(num_classes):
+                mask = (target == i)
+                if mask.sum() > 0:
+                    cell_type_accuracies[i] += accuracy_score(target[mask].cpu(), predictions[mask].cpu())
+
+    # Average the accuracy for each cell type
+    cell_type_accuracies /= len(test_loader)
+
+    print(f"Test loss: {total_loss / len(test_loader.dataset):.4f}, Test accuracy: {accuracy_metric_test.compute():.4f}, Test auprc: {auprc_metric_test.compute():.4f}")
+
+    return cell_type_accuracies

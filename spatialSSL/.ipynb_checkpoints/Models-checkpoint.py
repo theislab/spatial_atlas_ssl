@@ -1,6 +1,6 @@
 from torch import nn, optim, Tensor
 import torch
-from torch_geometric.nn import GCNConv,GATConv
+from torch_geometric.nn import GCNConv, GATConv, TransformerConv
 from torch.optim.lr_scheduler import StepLR
 from sklearn.metrics import r2_score
 from torch.nn import LeakyReLU, Dropout
@@ -140,3 +140,44 @@ class TransformerModel(nn.Module):
         # Apply max pooling across the heads dimension
         x, _ = torch.max(x, dim=2)
         return x
+
+
+# Model for classification task, input would require the expected number of classes
+from torch.nn import functional as F
+from torch_geometric.nn import GATConv
+
+
+class GATClassification(nn.Module):
+    def __init__(self, in_channels, hidden_channels, num_classes, num_heads=4, dropout_rate=0.2):
+        super(GATClassification, self).__init__()
+
+        self.conv1 = GATConv(in_channels, hidden_channels, heads=num_heads)
+        self.conv2 = GATConv(hidden_channels * num_heads, hidden_channels, heads=num_heads)
+        self.classifier = nn.Linear(hidden_channels * num_heads, num_classes)
+
+        self.dropout = nn.Dropout(dropout_rate)
+        self.act = nn.LeakyReLU()
+
+    def forward(self, x, edge_index):
+        x = self.act(self.conv1(x, edge_index))
+        x = self.dropout(x)
+        x = self.act(self.conv2(x, edge_index))
+        x = self.dropout(x)
+        x = self.classifier(x)
+        return x
+    
+class Transferlearn(nn.Module):
+    def __init__(self, pre_trained_model,output_size,buffer_channel, num_classes):
+        super(Transferlearn, self).__init__()
+        self.pre_trained_model = pre_trained_model
+        self.buffer = nn.Linear(output_size, buffer_channel)
+        self.classifier = nn.Linear(buffer_channel, num_classes)
+        self.act = nn.LeakyReLU()
+
+    def forward(self, x, edge_index):
+        x = self.pre_trained_model(x, edge_index)
+        x = self.buffer(x)
+        x = self.act(x)
+        x = self.classifier(x)
+        return x
+

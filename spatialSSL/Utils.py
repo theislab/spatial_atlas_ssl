@@ -1,6 +1,8 @@
 from torch.utils.data import random_split, Dataset
 from torch_geometric.loader import DataLoader
 from sklearn.model_selection import KFold
+import matplotlib.pyplot as plt
+import numpy as np
 
 def split_dataset(dataset, split_percent=(0.8, 0.1, 0.1), batch_size=64, pre_train=False, k_folds=None):
     if k_folds is not None:
@@ -51,3 +53,11 @@ class graphDataset(Dataset):
 
     def __getitem__(self, idx):
         return self.graphs[idx]
+
+    
+def visualize_cell_type_accuracies(cell_type_accuracies):
+    plt.bar(range(len(cell_type_accuracies)), cell_type_accuracies)
+    plt.xlabel('Cell Type')
+    plt.ylabel('Accuracy')
+    plt.title('Accuracy for Each Cell Type')
+    plt.show()

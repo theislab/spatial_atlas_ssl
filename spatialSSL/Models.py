@@ -165,3 +165,19 @@ class GATClassification(nn.Module):
         x = self.dropout(x)
         x = self.classifier(x)
         return x
+    
+class Transferlearn(nn.Module):
+    def __init__(self, pre_trained_model,output_size,buffer_channel, num_classes):
+        super(Transferlearn, self).__init__()
+        self.pre_trained_model = pre_trained_model
+        self.buffer = nn.Linear(output_size, buffer_channel)
+        self.classifier = nn.Linear(buffer_channel, num_classes)
+        self.act = nn.LeakyReLU()
+
+    def forward(self, x, edge_index):
+        x = self.pre_trained_model(x, edge_index)
+        x = self.buffer(x)
+        x = self.act(x)
+        x = self.classifier(x)
+        return x
+
