@@ -55,9 +55,13 @@ class graphDataset(Dataset):
         return self.graphs[idx]
 
     
-def visualize_cell_type_accuracies(cell_type_accuracies):
+def visualize_cell_type_accuracies(cell_type_accuracies,save_path=None):
     plt.bar(range(len(cell_type_accuracies)), cell_type_accuracies)
     plt.xlabel('Cell Type')
     plt.ylabel('Accuracy')
     plt.title('Accuracy for Each Cell Type')
-    plt.show()
+    if save_path is not None:
+        plt.savefig(save_path)
+        plt.close()
+    else:
+        plt.show()
