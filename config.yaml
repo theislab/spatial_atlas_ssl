@@ -13,12 +13,12 @@ radius:
 
 
 
-pretrain_epochs: 50
-pretrain_lr: 0.002
+pretrain_epochs: 100
+pretrain_lr: 0.005
 pretrain_batch_size: 64
 pretrain_patience: 10
 
-train_epochs: 50
+train_epochs: 100
 train_lr: 0.002
 train_batch_size: 64
 train_patience: 10
@@ -26,11 +26,11 @@ train_patience: 10
 
 bottleneck:
   - 128
-  - 64
+  #- 64
 
 masking_mode:
-  #- 0.5
-  - 0.9
+  - 0.5
+ # - 0.9
 
 pretrain_structure:
  # - "GCN"
