@@ -33,11 +33,11 @@ masking_mode:
   - 0.9
 
 pretrain_structure:
-  - "GCN"
+ # - "GCN"
   - "GAT"
 
 
 num_hidden_layers:
   - 2
-  - 4
+ # - 4
 

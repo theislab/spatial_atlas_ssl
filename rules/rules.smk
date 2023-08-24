@@ -68,8 +68,8 @@ rule combine_results_pretrain:
 
 rule train:
     input:
-        trainset=config['output_folder'] + config['adata_name'] + "/train_datasets/dataset_{k_hop}_{radius}_train.pt",
-        valset=config['output_folder'] + config['adata_name'] + "/train_datasets/dataset_{k_hop}_{radius}_val.pt",
+        trainset=config['output_folder'] + config['adata_name'] + "/pretrain_datasets/dataset_{k_hop}_{radius}_train.pt",
+        valset=config['output_folder'] + config['adata_name'] + "/pretrain_datasets/dataset_{k_hop}_{radius}_val.pt",
         adata=config['adata_folder'] + config['adata_name'],
         model=config['output_folder'] + config[
             'adata_name'] + "/pretrain_models/model_{k_hop}_{radius}_{masking_mode}_pre_{pretrained}_lay{layers}_n{neck}.pt"
@@ -92,8 +92,8 @@ rule train:
 
 rule train_no_pre:
     input:
-        trainset=config['output_folder'] + config['adata_name'] + "/train_datasets/dataset_{k_hop}_{radius}_train.pt",
-        valset=config['output_folder'] + config['adata_name'] + "/train_datasets/dataset_{k_hop}_{radius}_val.pt",
+        trainset=config['output_folder'] + config['adata_name'] + "/pretrain_datasets/dataset_{k_hop}_{radius}_train.pt",
+        valset=config['output_folder'] + config['adata_name'] + "/pretrain_datasets/dataset_{k_hop}_{radius}_val.pt",
         adata=config['adata_folder'] + config['adata_name'],
     params:
         train_patience=config['train_patience'],

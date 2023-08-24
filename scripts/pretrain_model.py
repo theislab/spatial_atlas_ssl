@@ -8,7 +8,7 @@ from torch_geometric.loader import DataLoader
 from matplotlib.backends.backend_pdf import PdfPages
 
 
-#sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import spatialSSL
 
 torch.manual_seed(0)
