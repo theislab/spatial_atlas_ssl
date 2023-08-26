@@ -12,11 +12,11 @@ rule create_dataset:
             'adata_name'] + "/pretrain_datasets/dataset_{k_hop}_{radius}_train.pt",
         valset=config['output_folder'] + config['adata_name'] + "/pretrain_datasets/dataset_{k_hop}_{radius}_val.pt",
         testset=config['output_folder'] + config['adata_name'] + "/pretrain_datasets/dataset_{k_hop}_{radius}_test.pt",
-        down_trainset=config['output_folder'] + config[
-            'adata_name'] + "/train_datasets/dataset_{k_hop}_{radius}_train.pt",
-        down_valset=config['output_folder'] + config['adata_name'] + "/train_datasets/dataset_{k_hop}_{radius}_val.pt",
-        down_testset=config['output_folder'] + config[
-            'adata_name'] + "/train_datasets/dataset_{k_hop}_{radius}_test.pt",
+        #down_trainset=config['output_folder'] + config[
+         #   'adata_name'] + "/train_datasets/dataset_{k_hop}_{radius}_train.pt",
+        #down_valset=config['output_folder'] + config['adata_name'] + "/train_datasets/dataset_{k_hop}_{radius}_val.pt",
+        #down_testset=config['output_folder'] + config[
+        #    'adata_name'] + "/train_datasets/dataset_{k_hop}_{radius}_test.pt",
     shell:
         """
         python scripts/create_dataset.py {input.adata} {wildcards.radius} {wildcards.k_hop} {params.pre_basename} {params.train_basename}
