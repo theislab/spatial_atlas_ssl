@@ -19,7 +19,7 @@ dataset_constructor = spatialSSL.Dataloader.EgoNetDatasetConstructor(file_path=f
 dataset_constructor.load_data()
 
 # Construct
-dataset = dataset_constructor.construct_graph(show_progress_bar=True)
+dataset = dataset_constructor.construct_graph(show_progress_bar=False)
 
 # Split the dataset into train, validation, and test sets, split test for downstream
 train_data, val_data, test_data = random_split(dataset, (0.8,0.1,0.1))
@@ -34,6 +34,6 @@ torch.save(val_data, args[4] + "val.pt")
 torch.save(test_data, args[4] + "test.pt")
 
 # Save the downstream data
-torch.save(down_train, args[5] + "train.pt")
-torch.save(down_val, args[5] + "val.pt")
-torch.save(down_test, args[5] + "test.pt")
+# torch.save(down_train, args[5] + "train.pt")
+# torch.save(down_val, args[5] + "val.pt")
+# torch.save(down_test, args[5] + "test.pt")
