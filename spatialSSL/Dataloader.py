@@ -104,8 +104,9 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
 
         subgraphs = []
 
+        progress_bar = tqdm(total=len(self.adata), disable=not show_progress_bar, desc=f"Processing {len(self.adata)} nodes")
         # for image in tqdm(images, desc=f"Processing {len(images)} images"):
-        for idx in tqdm(range(len(self.adata)), desc=f"Processing {len(self.adata)} nodes", disable=not show_progress_bar):
+        for idx in range(len(self.adata)):
             # create subgraph for each node
             try:
 
@@ -126,11 +127,17 @@ class EgoNetDatasetConstructor(SpatialDatasetConstructor):
 
                 data = Data(x=subset + offset, y=idx, edge_index=edge_index, mask=mask, edge_weights=graph_info[2][edge_mask])#, celltype=self.adata.obs[self.label_col][idx])
                 subgraphs.append(data)
+
+                # update barplot every 1000 nodes
+                if idx % 40000 == 0 and idx != 0:
+                    progress_bar.update(40000)
+
             except Exception as e:
                 print(e)
                 print(f"Error processing node {idx}")
                 continue
 
+        progress_bar.close()
         return subgraphs
 
 

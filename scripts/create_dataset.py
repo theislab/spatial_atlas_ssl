@@ -19,7 +19,7 @@ dataset_constructor = spatialSSL.Dataloader.EgoNetDatasetConstructor(file_path=f
 dataset_constructor.load_data()
 
 # Construct
-dataset = dataset_constructor.construct_graph(show_progress_bar=False)
+dataset = dataset_constructor.construct_graph(show_progress_bar=True)
 
 # Split the dataset into train, validation, and test sets, split test for downstream
 train_data, val_data, test_data = random_split(dataset, (0.8,0.1,0.1))
