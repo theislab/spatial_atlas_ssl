@@ -1,6 +1,6 @@
 rules: "rules/"
 adata_folder: "example_files/"
-adata_name: "img_1199670929.h5ad"
+adata_name: "subset_6img_atlas_brain.h5ad"
 
 output_folder: "snake_output/"
 
@@ -13,24 +13,23 @@ radius:
 
 
 
-pretrain_epochs: 100
+pretrain_epochs: 2
 pretrain_lr: 0.005
 pretrain_batch_size: 64
 pretrain_patience: 10
 
-train_epochs: 100
-train_lr: 0.002
+train_epochs: 2
+train_lr: 0.005
 train_batch_size: 64
 train_patience: 10
 
 
 bottleneck:
-  - 128
-  #- 64
+  #- 128
+  - 64
 
 masking_mode:
   - 0.5
- # - 0.9
 
 pretrain_structure:
  # - "GCN"
@@ -39,5 +38,4 @@ pretrain_structure:
 
 num_hidden_layers:
   - 2
- # - 4
 

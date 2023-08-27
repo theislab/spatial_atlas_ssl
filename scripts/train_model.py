@@ -81,10 +81,21 @@ optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 training_summary = spatialSSL.Training.train(model, train_loader, val_loader, optimizer, criterion, num_epochs,
                                              patience, model_path=output_model, gene_expression=adata)
 
+df = training_summary.to_pandas()
+
+df["model_type"] = model_type
+df["num_hidden_layers"] = num_hidden_layers
+df["hidden_channels"] = hidden_channels
+df["learning_rate"] = learning_rate
+df["batch_size"] = batch_size
+df["patience"] = patience
+df["num_epochs"] = num_epochs
+
+
 # Save training summary to pdf
 with PdfPages(pdf_output) as pdf:
     fig = training_summary.plot()
     pdf.savefig(fig)
 
 # save training summary to csv
-training_summary.to_pandas().to_csv(csv_output, index=False)
+df.to_csv(csv_output, index=False)

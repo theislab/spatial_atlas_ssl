@@ -1,3 +1,18 @@
+rule plot_dataset:
+    input:
+        adata=config['adata_folder'] + config['adata_name']
+    params:
+        config['output_folder'] + config['adata_name'] + "/plots"
+    output:
+        bar = config['output_folder'] + config['adata_name'] + "/plots/barplot_celltype_dist.png",
+        heat = config['output_folder'] + config['adata_name'] + "/plots/heatmap_celltype_dist.png",
+        hist = config['output_folder'] + config['adata_name'] + "/plots/histogram_unique_celltype_dist.png"
+    shell:
+        """
+        python scripts/plot_dataset.py {input.adata} {params}
+        """
+
+
 # we calculate splice variants for all genes for each cell (each cell gets different variants
 rule create_dataset:
     input:
