@@ -1,6 +1,6 @@
 rules: "rules/"
 adata_folder: "example_files/"
-adata_name: "subset_6img_atlas_brain.h5ad"
+adata_name: "img_119670929_1199650932.h5ad"
 
 output_folder: "snake_output/"
 

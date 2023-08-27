@@ -36,6 +36,10 @@ obs_df = adata.obs.copy()
 sorted_obs_df = obs_df.sort_values(by="section")
 adata = adata[sorted_obs_df.index]
 
+category_to_int = {category: i for i, category in enumerate(adata.obs.class_label.unique())}
+cat_values = adata.obs["class_label"].map(category_to_int)
+adata.obs["class_id"] = cat_values
+
 # create train and val loaders
 train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
@@ -90,7 +94,8 @@ df["learning_rate"] = learning_rate
 df["batch_size"] = batch_size
 df["patience"] = patience
 df["num_epochs"] = num_epochs
-
+df['model_name'] = os.path.basename(output_model)
+df['pretrained_model'] = True if pretrained_model != "None" else False
 
 # Save training summary to pdf
 with PdfPages(pdf_output) as pdf:

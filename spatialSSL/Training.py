@@ -24,7 +24,7 @@ def train_epoch(model, loader, optimizer, criterion, gene_expression=None, train
                 optimizer.zero_grad()
 
             input = torch.tensor(gene_expression.X[data.x].toarray(), dtype=torch.double).to(device).float()
-            labels = torch.tensor(gene_expression[data.x.numpy()].obs[class_label].cat.codes.values).to(
+            labels = torch.tensor(gene_expression[data.x.numpy()].obs['class_id']).to(
                 device).long()
 
             # Forward + backward + optimize

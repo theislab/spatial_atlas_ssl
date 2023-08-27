@@ -152,3 +152,31 @@ rule combine_results_train:
         """
         python scripts/combine_results.py {params.folder} {output}
         """
+
+rule eval_models:
+    input:
+        files=expand(config['output_folder'] + config[
+            'adata_name'] + "/train_models/summary_{k_hop}_{radius}_{masking_mode}_pre_{pretrained}_lay{layers}_n{neck}.csv",
+            k_hop=config['k_hop'],
+            radius=config['radius'],
+            masking_mode=config['masking_mode'],
+            pretrained=config['pretrain_structure'],
+            neck=config['bottleneck'],
+            layers=config['num_hidden_layers']),
+        no_pre=expand(config['output_folder'] + config[
+            'adata_name'] + "/train_models/summary_{k_hop}_{radius}_n{neck}_m{model}_lay{layers}_no_pre.csv",
+            k_hop=config['k_hop'],
+            radius=config['radius'],
+            neck=config['bottleneck'],
+            model=config['pretrain_structure'],
+            layers=config['num_hidden_layers']),
+        adata=config['adata_folder'] + config['adata_name'],
+        testset= expand(config['output_folder'] + config['adata_name'] + "/pretrain_datasets/dataset_{k_hop}_{radius}_test.pt", k_hop=config['k_hop'], radius=config['radius'])
+    params:
+        folder=config['output_folder'] + config['adata_name'] + "/train_models/"
+    output:
+        config['output_folder'] + config['adata_name'] + "/train_models/eval_models.csv"
+    shell:
+        """
+        python scripts/eval_models.py {params.folder} {output} {input.adata} {input.testset}
+        """
