@@ -12,7 +12,7 @@ import spatialSSL
 torch.manual_seed(0)
 
 # ['scripts/train_model.py', 'snake_output/datasets/dataset_2_20_train.pt', 'snake_output/datasets/dataset_2_20_val.pt', 'snake_output/models/model_2_20_0.5_GCN.pt', '10', '64', '0.001', '100', 'example_files/img_1199670929.h5ad', 'snake_output/models/summary_2_20_0.5_GCN.pdf', 'snake_output/models/summary_2_20_0.5_GCN.csv', 'snake_output/pretrain_models/model_2_20_0.5_GCN.pt']
-os.chdir("/Users/leopoldendres/Documents/Bioinformatik/MasterStudium/spatial_atlas_ssl")
+#os.chdir("/Users/leopoldendres/Documents/Bioinformatik/MasterStudium/spatial_atlas_ssl")
 
 args = sys.argv
 
