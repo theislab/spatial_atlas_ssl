@@ -51,7 +51,6 @@ precisions = []
 recalls = []
 
 for row in df.iterrows():
-    print(row[1]['file'])
 
     weights = torch.load(
         input_folder +
@@ -66,7 +65,7 @@ for row in df.iterrows():
                                             num_hidden_layers=info_dict['num_hidden_layers'])
 
     # load pretrained weights of first layer and hidden layers
-    print(model.load_state_dict(weights))
+    model.load_state_dict(weights)
 
     model.eval()
 
