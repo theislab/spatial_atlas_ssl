@@ -15,7 +15,6 @@ import spatialSSL
 
 args = sys.argv
 
-
 # read adata and sort adata by section
 input_folder = args[1]
 adata = sc.read(args[3])
@@ -32,12 +31,8 @@ adata.obs["class_id"] = cat_values
 testset = torch.load(args[4])
 testloader = DataLoader(testset, batch_size=128, shuffle=False)
 
-
-
 # get all files from folder which end on .csv
 matching_files = glob.glob(input_folder + "summary_*.csv")
-
-
 
 # read all files and concatenate them pandas, add file basename as column
 df = pd.concat([pd.read_csv(f).assign(file=os.path.basename(f)) for f in matching_files])
@@ -71,6 +66,7 @@ for row in df.iterrows():
 
     gene_expression = adata
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
 
     preds = []
     trues = []
@@ -80,8 +76,8 @@ for row in df.iterrows():
             labels = torch.tensor(gene_expression[data.x.numpy()].obs['class_id']).to(
                 device).long()
             outputs = model(input, data.edge_index.to(device).long(), data.edge_weights.to(device).float())
-            preds.append(outputs.argmax(dim=1).detach().numpy())
-            trues.append(labels.detach().numpy())
+            preds.append(outputs.argmax(dim=1).cpu().detach().numpy())
+            trues.append(labels.detach().cpu().numpy())
 
     preds = np.concatenate(preds)
     trues = np.concatenate(trues)
